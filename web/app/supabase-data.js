@@ -182,6 +182,35 @@
       let e2 = (await sb.from("prs").delete().eq("id", id)).error;
       if (e2) throw e2;
     },
+
+    // ---- นำเข้าทีละหลายรายการ (bulk import, upsert ตาม PK) ----
+    async importVehicles(rows) {
+      const clean = rows.filter((r) => (r.id || "").trim());
+      if (!clean.length) return 0;
+      const { error } = await sb.from("vehicles").upsert(
+        clean.map((r) => ({
+          id: r.id.trim(), chassis: (r.chassis || "").trim(),
+          plate: r.plate || null, model: r.model || null, route: r.route || null,
+        })),
+        { onConflict: "id" });
+      if (error) throw error;
+      return clean.length;
+    },
+    async importParts(rows) {
+      const clean = rows.filter((r) => (r.code || "").trim());
+      if (!clean.length) return 0;
+      const { error } = await sb.from("parts").upsert(
+        clean.map((r) => ({
+          code: r.code.trim(), name_th: r.th || "", name_en: r.en || null,
+          unit: r.unit || "ชิ้น", unit_en: r.unitEn || null,
+          warehouse_id: (r.wh || "").trim() || null,
+          stock: Number(r.stock) || 0, min: Number(r.min) || 0, price: Number(r.price) || 0,
+          category: r.cat || null,
+        })),
+        { onConflict: "code" });
+      if (error) throw error;
+      return clean.length;
+    },
   };
 
   window.EVTDATA = Object.assign(state, {

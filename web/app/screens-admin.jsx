@@ -13,7 +13,26 @@
     const [tab, setTab] = useState("part");
     const [edit, setEdit] = useState(null);   // { entity, obj, isNew }
     const [del, setDel] = useState(null);      // { entity, id, label }
+    const [imp, setImp] = useState(null);      // { text } เมื่อเปิดหน้านำเข้า
     const [busy, setBusy] = useState(false);
+
+    // แปลงข้อความวาง (Excel = คั่นด้วย Tab, CSV = คั่นด้วย ,) เป็นแถวข้อมูล
+    function parseRows(text, cols) {
+      const lines = (text || "").split(/\r?\n/).filter((l) => l.trim() !== "");
+      if (!lines.length) return [];
+      const delim = lines[0].indexOf("\t") >= 0 ? "\t" : ",";
+      const first = lines[0].toLowerCase();
+      const isHeader = ["รหัส", "ทะเบียน", "ชื่อ", "เลขตัวถัง", "code", "plate", "chassis", "name"].some((k) => first.includes(k));
+      const out = [];
+      for (let i = isHeader ? 1 : 0; i < lines.length; i++) {
+        const cells = lines[i].split(delim).map((s) => s.trim());
+        const obj = {};
+        cols.forEach((c, idx) => { obj[c.k] = cells[idx] != null ? cells[idx] : ""; });
+        out.push(obj);
+      }
+      return out;
+    }
+    const impValid = (r, cols) => cols.filter((c) => c.req).every((c) => String(r[c.k] || "").trim());
 
     // ---- นิยามแต่ละชนิดข้อมูล ----
     const whOpts = data.warehouses.map((w) => ({ value: w.id, label: (w.th || w.id) }));
@@ -41,6 +60,18 @@
           { k: "price", label: L(lang, "ราคา (บาท)", "Price (THB)"), num: true },
         ],
         blank: () => ({ code: "", th: "", en: "", cat: "", unit: "ชิ้น", unitEn: "pcs", wh: (data.warehouses[0] || {}).id || "", stock: 0, min: 0, price: 0 }),
+        importCols: [
+          { k: "code", label: L(lang, "รหัส", "Code"), req: true },
+          { k: "th", label: L(lang, "ชื่อ (ไทย)", "Name TH"), req: true },
+          { k: "en", label: L(lang, "ชื่อ (อังกฤษ)", "Name EN") },
+          { k: "cat", label: L(lang, "หมวด", "Category") },
+          { k: "unit", label: L(lang, "หน่วย (ไทย)", "Unit TH") },
+          { k: "unitEn", label: L(lang, "หน่วย (EN)", "Unit EN") },
+          { k: "wh", label: L(lang, "รหัสคลัง", "WH ID") },
+          { k: "stock", label: L(lang, "คงเหลือ", "Stock"), num: true },
+          { k: "min", label: L(lang, "ขั้นต่ำ", "Min"), num: true },
+          { k: "price", label: L(lang, "ราคา", "Price"), num: true },
+        ],
       },
       vehicle: {
         label: L(lang, "รถบัส", "Vehicles"), pk: "id", list: data.vehicles,
@@ -58,6 +89,13 @@
           { k: "chassis", label: L(lang, "เลขตัวถัง (chassis)", "Chassis") },
         ],
         blank: () => ({ id: "", chassis: "", plate: "", model: "", route: "" }),
+        importCols: [
+          { k: "id", label: L(lang, "รหัสรถ", "ID"), req: true },
+          { k: "plate", label: L(lang, "ทะเบียน", "Plate") },
+          { k: "model", label: L(lang, "รุ่น", "Model") },
+          { k: "route", label: L(lang, "เส้นทาง", "Route") },
+          { k: "chassis", label: L(lang, "เลขตัวถัง", "Chassis") },
+        ],
       },
       dept: {
         label: L(lang, "แผนก", "Departments"), pk: "id", list: data.departments,
@@ -137,6 +175,16 @@
       } catch (err) { setToast(errMsg(err)); }
       finally { setBusy(false); }
     }
+    async function doImport() {
+      const rows = parseRows(imp.text, cur.importCols).filter((r) => impValid(r, cur.importCols));
+      if (!rows.length) { setToast(L(lang, "ไม่พบข้อมูลที่นำเข้าได้", "No valid rows")); return; }
+      setBusy(true);
+      try {
+        const n = await actions.adminImport(tab, rows);
+        setToast(L(lang, "นำเข้าแล้ว ", "Imported ") + n + L(lang, " รายการ", " rows")); setImp(null);
+      } catch (err) { setToast(errMsg(err)); }
+      finally { setBusy(false); }
+    }
 
     // ---- ฟอร์ม (modal) ----
     function setF(k, v) { setEdit((s) => ({ ...s, obj: { ...s.obj, [k]: v } })); }
@@ -178,6 +226,36 @@
           e(window.Btn, { variant: "primary", disabled: busy, onClick: doDelete,
             style: { background: "var(--danger,#c0392b)" } }, busy ? "…" : L(lang, "ลบ", "Delete"))))) : null;
 
+    // ---- นำเข้า (import modal) ----
+    const parsed = imp ? parseRows(imp.text, cur.importCols || []) : [];
+    const validRows = parsed.filter((r) => impValid(r, cur.importCols || []));
+    const importModal = imp ? e(window.Modal, { onClose: () => setImp(null), max: 660 },
+      e("div", { style: { padding: 22 } },
+        e("h3", { style: { margin: "0 0 4px", color: "var(--strong-green,#003F1D)" } },
+          L(lang, "นำเข้า", "Import ") + cur.label + L(lang, " จาก Excel/CSV", "")),
+        e("p", { style: { color: "var(--fg-muted,#555)", fontSize: 13, lineHeight: 1.6, margin: "4px 0 10px" } },
+          L(lang, "คัดลอกหลายแถวจาก Excel มาวาง หรือเลือกไฟล์ CSV · ลำดับคอลัมน์: ", "Paste rows from Excel or pick a CSV · columns: "),
+          e("b", null, (cur.importCols || []).map((c) => c.label + (c.req ? "*" : "")).join("  |  "))),
+        e("input", { type: "file", accept: ".csv,.txt,.tsv",
+          onChange: (ev) => { const f = ev.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => setImp({ text: String(rd.result || "") }); rd.readAsText(f); },
+          style: { marginBottom: 10, fontSize: 13 } }),
+        e("textarea", { value: imp.text, onChange: (ev) => setImp({ text: ev.target.value }),
+          placeholder: (cur.importCols || []).map((c) => c.label).join("\t"),
+          rows: 7, style: { width: "100%", boxSizing: "border-box", borderRadius: 10, padding: "10px 12px",
+            border: "1px solid var(--border,#E8E7DE)", font: "500 13px var(--font-en,monospace)", resize: "vertical" } }),
+        e("div", { style: { margin: "10px 0", fontSize: 13, color: "var(--fg-muted,#555)" } },
+          L(lang, "พบ ", "Found ") + parsed.length + L(lang, " แถว · นำเข้าได้ ", " rows · valid ") + validRows.length +
+          (parsed.length > validRows.length ? L(lang, " (บางแถวขาดข้อมูลที่จำเป็น)", " (some rows missing required fields)") : "")),
+        validRows.length ? e("div", { style: { maxHeight: 170, overflow: "auto", border: "1px solid var(--border,#E8E7DE)", borderRadius: 8, marginBottom: 14 } },
+          e("table", { className: "tbl", style: { margin: 0 } },
+            e("thead", null, e("tr", null, (cur.importCols || []).map((c) => e("th", { key: c.k, className: c.num ? "num" : "" }, c.label)))),
+            e("tbody", null, validRows.slice(0, 6).map((r, i) => e("tr", { key: i },
+              (cur.importCols || []).map((c) => e("td", { key: c.k, className: (c.k === "id" || c.k === "code" ? "code " : "") + (c.num ? "num" : "") }, r[c.k] || "—"))))))) : null,
+        e("div", { style: { display: "flex", justifyContent: "flex-end", gap: 10 } },
+          e(window.Btn, { variant: "ghost", onClick: () => setImp(null) }, t("cancel")),
+          e(window.Btn, { variant: "primary", disabled: busy || !validRows.length, onClick: doImport },
+            busy ? "…" : (L(lang, "นำเข้า ", "Import ") + validRows.length + L(lang, " รายการ", " rows")))))) : null;
+
     // ---- ตาราง ----
     const table = e(window.Card, null,
       e("div", { style: { overflowX: "auto" } },
@@ -205,12 +283,15 @@
           e("div", { className: "eyebrow" }, "ADMIN"),
           e("h1", null, L(lang, "จัดการข้อมูล", "Manage Data")),
           e("p", null, L(lang, "เพิ่ม แก้ไข และลบข้อมูลหลักของระบบ", "Add, edit and delete master data"))),
-        cur.noAdd ? null : e(window.Btn, { variant: "primary", icon: e(window.IcPlus, { size: 16 }),
-          onClick: () => setEdit({ entity: tab, obj: cur.blank(), isNew: true }) }, L(lang, "เพิ่ม", "Add ") + cur.label)),
+        e("div", { style: { display: "flex", gap: 10 } },
+          cur.importCols ? e(window.Btn, { variant: "soft", icon: e(window.IcUpload, { size: 16 }),
+            onClick: () => setImp({ text: "" }) }, L(lang, "นำเข้า", "Import")) : null,
+          cur.noAdd ? null : e(window.Btn, { variant: "primary", icon: e(window.IcPlus, { size: 16 }),
+            onClick: () => setEdit({ entity: tab, obj: cur.blank(), isNew: true }) }, L(lang, "เพิ่ม", "Add ") + cur.label))),
       e("div", { className: "cat-row" },
         Object.keys(ENT).map((k) => e("button", { key: k, className: "cat-pill" + (tab === k ? " on" : ""),
           onClick: () => setTab(k) }, ENT[k].label + " (" + ENT[k].list.length + ")"))),
-      table, formModal, delModal);
+      table, formModal, delModal, importModal);
   }
 
   window.Admin = Admin;

@@ -90,6 +90,12 @@
         await D.api[fn](id);
         await refresh();
       },
+      async adminImport(entity, rows) {
+        const fn = { vehicle: "importVehicles", part: "importParts" }[entity];
+        const n = await D.api[fn](rows);
+        await refresh();
+        return n;
+      },
       receive(prId, recv) {
         persist(() => D.api.receive(prId, recv));
         setDb((s) => {
