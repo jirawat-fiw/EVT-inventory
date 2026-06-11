@@ -172,6 +172,16 @@
       if (error) throw error;
     },
     async deleteWarehouse(id) { const { error } = await sb.from("warehouses").delete().eq("id", id); if (error) throw error; },
+
+    // ลบ PR ทั้งใบ: ลบใบรับของ (GR) ที่ผูกกับ PR นี้ก่อน → แล้วลบ PR
+    // (รายการในใบ pr_items ถูกลบอัตโนมัติด้วย ON DELETE CASCADE)
+    // หมายเหตุ: ใบเบิก (issues) อ้าง PR แบบ text เท่านั้น จะไม่ถูกลบ และสต็อกไม่ถูกย้อนกลับ
+    async deletePR(id) {
+      let e1 = (await sb.from("receipts").delete().eq("pr_id", id)).error;
+      if (e1) throw e1;
+      let e2 = (await sb.from("prs").delete().eq("id", id)).error;
+      if (e2) throw e2;
+    },
   };
 
   window.EVTDATA = Object.assign(state, {
