@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80" fill="none" aria-label="EVT Leaf">
+  <defs>
+    <linearGradient id="evtLeafGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#003F1D"></stop>
+      <stop offset="55%" stop-color="#00652E"></stop>
+      <stop offset="100%" stop-color="#00CB5C"></stop>
+    </linearGradient>
+  </defs>
+  
+  <path d="M 4 56&#xA;           C 50 8, 130 -2, 196 22&#xA;           C 168 58, 80 80, 4 56 Z" fill="url(#evtLeafGrad)"></path>
+</svg>
