@@ -16,6 +16,8 @@
     nav_main:       { th: "เมนูหลัก", en: "Main" },
     nav_ops:        { th: "งานคลัง", en: "Warehouse" },
     nav_reports:    { th: "รายงาน", en: "Reports" },
+    nav_admin_grp:  { th: "ตั้งค่า", en: "Settings" },
+    nav_admin:      { th: "จัดการข้อมูล", en: "Manage Data" },
 
     search:         { th: "ค้นหา PR, อะไหล่, รหัส…", en: "Search PR, parts, code…" },
     role:           { th: "บทบาท", en: "Role" },

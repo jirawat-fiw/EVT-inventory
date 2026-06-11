@@ -131,6 +131,47 @@
       });
       if (error) throw error;
     },
+
+    // ---- จัดการข้อมูลหลัก (admin CRUD) ----
+    async savePart(p, isNew) {
+      const row = {
+        code: (p.code || "").trim(), name_th: p.th, name_en: p.en, unit: p.unit, unit_en: p.unitEn,
+        warehouse_id: p.wh || null, stock: Number(p.stock) || 0, min: Number(p.min) || 0,
+        price: Number(p.price) || 0, category: p.cat,
+      };
+      const { error } = isNew
+        ? await sb.from("parts").insert(row)
+        : await sb.from("parts").update(row).eq("code", row.code);
+      if (error) throw error;
+    },
+    async deletePart(code) { const { error } = await sb.from("parts").delete().eq("code", code); if (error) throw error; },
+
+    async saveVehicle(v, isNew) {
+      const row = { id: (v.id || "").trim(), chassis: v.chassis, plate: v.plate, model: v.model, route: v.route };
+      const { error } = isNew
+        ? await sb.from("vehicles").insert(row)
+        : await sb.from("vehicles").update(row).eq("id", row.id);
+      if (error) throw error;
+    },
+    async deleteVehicle(id) { const { error } = await sb.from("vehicles").delete().eq("id", id); if (error) throw error; },
+
+    async saveDept(d, isNew) {
+      const row = { id: (d.id || "").trim(), name_th: d.th, detail: d.detail };
+      const { error } = isNew
+        ? await sb.from("departments").insert(row)
+        : await sb.from("departments").update(row).eq("id", row.id);
+      if (error) throw error;
+    },
+    async deleteDept(id) { const { error } = await sb.from("departments").delete().eq("id", id); if (error) throw error; },
+
+    async saveWarehouse(w, isNew) {
+      const row = { id: (w.id || "").trim(), no: w.no, name_th: w.th, name_en: w.en };
+      const { error } = isNew
+        ? await sb.from("warehouses").insert(row)
+        : await sb.from("warehouses").update(row).eq("id", row.id);
+      if (error) throw error;
+    },
+    async deleteWarehouse(id) { const { error } = await sb.from("warehouses").delete().eq("id", id); if (error) throw error; },
   };
 
   window.EVTDATA = Object.assign(state, {

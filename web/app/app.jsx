@@ -41,6 +41,9 @@
     { group: "nav_reports", items: [
       { id: "summary", icon: window.IcReport, key: "nav_summary" },
     ]},
+    { group: "nav_admin_grp", items: [
+      { id: "admin", icon: window.IcEdit, key: "nav_admin" },
+    ]},
   ];
 
   function App({ user }) {
@@ -77,6 +80,16 @@
         persist(() => D.api.savePR(pr));
       },
       getPR(id) { return db.prs.find((p) => p.id === id); },
+      async adminSave(entity, obj, isNew) {
+        const fn = { part: "savePart", vehicle: "saveVehicle", dept: "saveDept", warehouse: "saveWarehouse" }[entity];
+        await D.api[fn](obj, isNew);
+        await refresh();
+      },
+      async adminDelete(entity, id) {
+        const fn = { part: "deletePart", vehicle: "deleteVehicle", dept: "deleteDept", warehouse: "deleteWarehouse" }[entity];
+        await D.api[fn](id);
+        await refresh();
+      },
       receive(prId, recv) {
         persist(() => D.api.receive(prId, recv));
         setDb((s) => {
@@ -130,6 +143,7 @@
     else if (view === "withdraw") screen = React.createElement(window.Withdraw, { ...common, pickerStyle: t.pickerStyle });
     else if (view === "stock") screen = React.createElement(window.Inventory, common);
     else if (view === "summary") screen = React.createElement(window.Summary, common);
+    else if (view === "admin") screen = React.createElement(window.Admin, common);
 
     return React.createElement("div", { className: "app" },
       // sidebar
