@@ -1,0 +1,6 @@
+# Netlify config — EVT ระบบเบิกของ
+# เว็บเป็น static (React + Babel ผ่าน CDN) ไม่ต้อง build
+# เสิร์ฟไฟล์จากโฟลเดอร์ web/ (มี index.html อยู่)
+[build]
+  publish = "web"
+  command = ""
