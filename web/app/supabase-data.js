@@ -96,14 +96,32 @@
   // ---- การบันทึก (เรียกจาก actions ใน app.jsx) ----
   const api = {
     async savePR(pr) {
+      // ผ่าน RPC (security definer) เพื่อให้ผู้ใช้ทั่วไปเปิด PR ได้ แม้ RLS จะล็อกการเขียนตรงไว้ที่แอดมิน
+      const { error } = await sb.rpc("save_pr", {
+        p_pr: {
+          id: pr.id, date: pr.date, dept: pr.dept, requester: pr.requester,
+          requesterUnit: pr.requesterUnit, status: pr.status || "pending",
+          scanned: !!pr.scanned, note: pr.note,
+        },
+        p_items: (pr.items || []).map((it) => ({
+          code: it.code, desc: it.desc, qty: it.qty,
+          received: it.received || 0, used: it.used || 0, wh: it.wh, unit: it.unit,
+        })),
+      });
+      if (!error) return;
+      // ยังไม่ได้รัน migration 0005 (ไม่มีฟังก์ชัน save_pr) → ใช้วิธีเขียนตรง (เหมือนเดิม)
+      if (error.code === "PGRST202" || error.code === "42883" || /save_pr|function/i.test(error.message || "")) {
+        return await this._savePRDirect(pr);
+      }
+      throw error;
+    },
+    async _savePRDirect(pr) {
       let e1 = (await sb.from("prs").insert({
         id: pr.id, date: pr.date, dept_id: pr.dept, requester: pr.requester,
         requester_unit: pr.requesterUnit, status: pr.status || "pending",
         scanned: !!pr.scanned, note: pr.note,
       })).error;
       if (e1) throw e1;
-
-      // เก็บเฉพาะรายการที่มีรหัส และตัดรหัสซ้ำ (กัน unique constraint)
       const seen = new Set();
       const items = (pr.items || []).filter((it) => {
         const c = (it.code || "").trim();
@@ -111,8 +129,6 @@
         seen.add(c); return true;
       });
       if (!items.length) return;
-
-      // สร้างอะไหล่ใหม่อัตโนมัติ สำหรับรหัสที่ยังไม่มีในคลัง (pr_items มี FK ผูก parts)
       const codes = items.map((it) => it.code.trim());
       const { data: existing } = await sb.from("parts").select("code").in("code", codes);
       const have = new Set((existing || []).map((p) => p.code));
@@ -121,11 +137,7 @@
         unit: it.unit || "ชิ้น", unit_en: null, warehouse_id: it.wh || null,
         stock: 0, min: 0, price: 0, category: "จาก PR (สแกน)",
       }));
-      if (stubs.length) {
-        let e2 = (await sb.from("parts").insert(stubs)).error;
-        if (e2) throw e2;
-      }
-
+      if (stubs.length) { let e2 = (await sb.from("parts").insert(stubs)).error; if (e2) throw e2; }
       let e3 = (await sb.from("pr_items").insert(items.map((it) => ({
         pr_id: pr.id, part_code: it.code.trim(), qty: it.qty,
         received: it.received || 0, used: it.used || 0, warehouse_id: it.wh, unit: it.unit,

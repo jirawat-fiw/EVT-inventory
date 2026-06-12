@@ -46,7 +46,11 @@
     ]},
   ];
 
+  const ADMIN_EMAIL = "jirawat@evthai.com"; // เฉพาะอีเมลนี้แก้ไขข้อมูลได้
+
   function App({ user }) {
+    const isAdmin = !!(user && user.email === ADMIN_EMAIL);
+    const navGroups = NAV.filter((g) => g.group !== "nav_admin_grp" || isAdmin);
     const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
     const [lang, setLang] = useState(() => localStorage.getItem("evt_lang") || "th");
     const [role, setRole] = useState("role_store");
@@ -155,7 +159,9 @@
     else if (view === "withdraw") screen = React.createElement(window.Withdraw, { ...common, pickerStyle: t.pickerStyle });
     else if (view === "stock") screen = React.createElement(window.Inventory, common);
     else if (view === "summary") screen = React.createElement(window.Summary, common);
-    else if (view === "admin") screen = React.createElement(window.Admin, common);
+    else if (view === "admin") screen = isAdmin
+      ? React.createElement(window.Admin, common)
+      : React.createElement(window.Dashboard, { ...common, dashLayout: t.dashLayout, trackerStyle: t.trackerStyle });
 
     return React.createElement("div", { className: "app" },
       // sidebar
@@ -165,7 +171,7 @@
           React.createElement("div", { className: "sb-brand-txt" },
             React.createElement("b", null, tr("appName")),
             React.createElement("span", null, tr("appSub")))),
-        NAV.map((grp) => React.createElement("div", { className: "sb-group", key: grp.group },
+        navGroups.map((grp) => React.createElement("div", { className: "sb-group", key: grp.group },
           React.createElement("div", { className: "sb-group-label" }, tr(grp.group)),
           grp.items.map((it) => React.createElement("button", {
             key: it.id, className: "sb-link" + (view === it.id ? " is-active" : ""), onClick: () => go(it.id),
@@ -200,7 +206,7 @@
 
       // mobile bottom nav
       React.createElement("nav", { className: "bottomnav no-print" },
-        NAV.flatMap((g) => g.items).map((it) => React.createElement("button", {
+        navGroups.flatMap((g) => g.items).map((it) => React.createElement("button", {
           key: it.id, className: "bn-item" + (view === it.id ? " on" : ""), onClick: () => go(it.id),
         },
           React.createElement(it.icon, { size: 20 }),
