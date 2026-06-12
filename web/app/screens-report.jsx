@@ -12,6 +12,9 @@
     const [vehicle, setVehicle] = useState("");
     const [job, setJob] = useState("");
     const [jobTitle, setJobTitle] = useState("");
+    const maintDeptId = ((data.departments || []).find((d) => ((d.th || "") + (d.detail || "")).includes("ซ่อมบำรุง"))
+      || (data.departments || []).find((d) => d.id === "21") || (data.departments || [])[0] || {}).id || "";
+    const [dept, setDept] = useState(maintDeptId);
     const [slip, setSlip] = useState(null);
     const [cat, setCat] = useState("ทั้งหมด");
     const [q, setQ] = useState("");
@@ -23,10 +26,25 @@
     function remove(code) { setCart((c) => c.filter((x) => x.code !== code)); }
 
     function submit() {
-      const issue = actions.withdraw(cart, { vehicle, job, jobTitle, by: data.currentUser });
-      setSlip({ ...issue, lines: cart.map((c) => ({ ...c, part: D.partByCode(c.code) })), vehicle, job, jobTitle });
+      const issue = actions.withdraw(cart, { vehicle, job, jobTitle, dept, by: data.currentUser });
+      setSlip({ ...issue, dept, lines: cart.map((c) => ({ ...c, part: D.partByCode(c.code) })), vehicle, job, jobTitle });
       setToast(t("wd_done"));
       setCart([]); setVehicle(""); setJob(""); setJobTitle("");
+    }
+
+    // จัดกลุ่มประวัติการเบิกเป็น "ครั้ง" (วันที่+งาน+รถ+ผู้เบิก) เพื่อพิมพ์ใบเบิกย้อนหลัง
+    const histGroups = [];
+    const _gmap = {};
+    (data.issues || []).forEach((iss) => {
+      const key = [iss.date, iss.job || "", iss.vehicle || "", iss.by || ""].join("|");
+      let g = _gmap[key];
+      if (!g) { g = _gmap[key] = { key, date: iss.date, job: iss.job, vehicle: iss.vehicle, by: iss.by, jobTitle: iss.jobTitle, dept: iss.dept, ids: [], lines: [], qty: 0 }; histGroups.push(g); }
+      g.ids.push(iss.id); g.qty += (iss.qty || 0);
+      g.lines.push({ code: iss.code, qty: iss.qty, part: D.partByCode(iss.code) || { th: iss.code, en: iss.code, unit: "" } });
+    });
+    function reprint(g) {
+      setSlip({ id: g.ids[0], date: g.date, by: g.by, dept: g.dept,
+        vehicle: (g.vehicle && g.vehicle !== "—") ? g.vehicle : "", job: g.job, jobTitle: g.jobTitle, lines: g.lines });
     }
 
     if (slip) return React.createElement(IssueSlip, { t, lang, slip, role, onBack: () => setSlip(null) });
@@ -100,7 +118,10 @@
                   }),
                   React.createElement("hr", { className: "hr", style: { margin: "8px 0 16px" } }),
                   React.createElement("div", { style: { font: "600 12px var(--font-th)", color: "var(--fg-muted)", marginBottom: 10 } }, t("wd_link_job")),
-                  React.createElement("div", { className: "grid g-2", style: { gap: 12, marginBottom: 12 } },
+                  React.createElement(window.Field, { label: t("wd_dept") },
+                    React.createElement("select", { className: "input", value: dept, onChange: (e) => setDept(e.target.value), style: { width: "100%" } },
+                      (data.departments || []).map((d) => React.createElement("option", { key: d.id, value: d.id }, d.th)))),
+                  React.createElement("div", { className: "grid g-2", style: { gap: 12, margin: "12px 0" } },
                     React.createElement(window.Field, { label: t("wd_vehicle") },
                       React.createElement(window.SearchSelect, {
                         value: vehicle,
@@ -122,6 +143,21 @@
                     React.createElement("span", { style: { font: "400 13px var(--font-th)", color: "var(--fg-subtle)" } }, t("item")),
                     React.createElement("b", { className: "mono", style: { font: "800 22px var(--font-en)", color: "var(--strong-green)" } }, cart.reduce((s, c) => s + c.qty, 0) + " " + t("pieces"))),
                   React.createElement(window.Btn, { variant: "primary", block: true, icon: React.createElement(window.IcFile, { size: 17 }), onClick: submit }, t("wd_submit")))))),
+      React.createElement(window.Card, { style: { marginTop: 18 } },
+        React.createElement(window.CardHead, { title: t("wd_history"), sub: histGroups.length + " " + t("item") }),
+        React.createElement("div", { className: "card-pad" },
+          histGroups.length === 0
+            ? React.createElement("div", { style: { textAlign: "center", padding: "20px 0", color: "var(--fg-subtle)", font: "400 13px var(--font-th)" } }, t("wd_empty"))
+            : histGroups.slice(0, 40).map((g, gi) => {
+                const veh = (g.vehicle && g.vehicle !== "—") ? D.vehById(g.vehicle) : null;
+                const last = Math.min(histGroups.length, 40) - 1;
+                return React.createElement("div", { key: g.key, style: { display: "flex", alignItems: "center", gap: 12, padding: "11px 2px", borderBottom: gi < last ? "1px solid var(--neutral-100)" : "0" } },
+                  React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                    React.createElement("div", { style: { font: "600 13px var(--font-th)" } }, fmtDate(g.date, lang) + (g.job ? " · " + g.job : "") + (veh ? " · " + veh.id : "")),
+                    React.createElement("div", { className: "mono", style: { font: "500 11px var(--font-en)", color: "var(--fg-subtle)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, g.lines.length + " " + t("item") + " · " + g.ids.join(", "))),
+                  React.createElement("span", { className: "mono", style: { font: "700 14px var(--font-en)", color: "var(--strong-green)", flexShrink: 0 } }, g.qty + " " + t("pieces")),
+                  React.createElement(window.Btn, { variant: "ghost", size: "sm", icon: React.createElement(window.IcPrint, { size: 14 }), onClick: () => reprint(g) }, t("wd_reprint")));
+              }))),
       scan ? React.createElement(window.ScanQRModal, {
         t,
         onClose: () => setScan(false),
@@ -132,7 +168,7 @@
 
   // ---- Issue slip (printable) ----
   function IssueSlip({ t, lang, slip, role, onBack }) {
-    const dep = D.deptById("21");
+    const dep = D.deptById(slip.dept || "21");
     const veh = slip.vehicle ? D.vehById(slip.vehicle) : null;
     return React.createElement("div", { className: "page fadein" },
       React.createElement("div", { className: "page-head no-print" },
@@ -164,16 +200,20 @@
             React.createElement("th", null, "#"), React.createElement("th", null, t("code")), React.createElement("th", null, t("detail")),
             React.createElement("th", { className: "num" }, t("qty")))),
           React.createElement("tbody", null,
-            slip.lines.map((l, i) => React.createElement("tr", { key: l.code },
-              React.createElement("td", null, i + 1),
-              React.createElement("td", { className: "mono", style: { fontWeight: 600 } }, l.code),
-              React.createElement("td", null, lang === "en" ? l.part.en : l.part.th),
-              React.createElement("td", { className: "num" }, l.qty + " " + l.part.unit)))),
+            slip.lines.map((l, i) => {
+              const part = l.part || { th: l.code, en: l.code, unit: "" };
+              return React.createElement("tr", { key: l.code },
+                React.createElement("td", null, i + 1),
+                React.createElement("td", { className: "mono", style: { fontWeight: 600 } }, l.code),
+                React.createElement("td", null, lang === "en" ? part.en : part.th),
+                React.createElement("td", { className: "num" }, l.qty + " " + part.unit));
+            })),
           React.createElement("tfoot", null, React.createElement("tr", null,
             React.createElement("td", { colSpan: 3, className: "num" }, t("total")),
             React.createElement("td", { className: "num" }, slip.lines.reduce((s, l) => s + l.qty, 0) + " " + t("pieces"))))),
         React.createElement("div", { className: "doc-sign" },
           docSign(t("issued_by"), slip.by),
+          docSign(t("receiver"), ""),
           docSign(t("approver"), ""),
           docSign(t("role_acct"), "")),
         React.createElement("div", { className: "doc-foot" }, t("tagline"))));

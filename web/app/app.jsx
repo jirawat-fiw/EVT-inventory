@@ -118,8 +118,9 @@
       },
       withdraw(cart, info) {
         const issue = {
-          id: "WD-2569-0" + (313 + Math.floor(Math.random() * 80)), date: "2026-06-09",
-          by: info.by, dept: "21", vehicle: info.vehicle || "—", job: info.job || "—",
+          id: "WD-2569-0" + (313 + Math.floor(Math.random() * 80)),
+          date: new Date().toISOString().slice(0, 10),
+          by: info.by, dept: info.dept || "21", vehicle: info.vehicle || "—", job: info.job || "—",
           jobTitle: info.jobTitle || (info.vehicle ? "" : "เติมสต็อก"),
         };
         setDb((s) => {

@@ -18,6 +18,10 @@
     nav_reports:    { th: "รายงาน", en: "Reports" },
     nav_admin_grp:  { th: "ตั้งค่า", en: "Settings" },
     nav_admin:      { th: "จัดการข้อมูล", en: "Manage Data" },
+    wd_history:     { th: "ประวัติการเบิก", en: "Withdrawal History" },
+    wd_reprint:     { th: "พิมพ์ใบเบิก", en: "Print slip" },
+    wd_dept:        { th: "แผนกที่เบิก", en: "Department" },
+    receiver:       { th: "ผู้รับของ", en: "Received by" },
 
     search:         { th: "ค้นหา PR, อะไหล่, รหัส…", en: "Search PR, parts, code…" },
     role:           { th: "บทบาท", en: "Role" },
