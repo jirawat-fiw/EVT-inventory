@@ -17,10 +17,14 @@
     const allDates = [...data.prs.map((p) => p.date), ...data.issues.map((w) => w.date), ...data.receipts.map((r) => r.date)];
     const months = Array.from(new Set(allDates.filter(Boolean).map((d) => d.slice(0, 7)))).sort().reverse();
     const [month, setMonth] = useState(months[0] || "");
+    // ---- warehouse selection (only warehouses with activity) ----
+    const whList = window.whWithData(data.warehouses, new Set([...data.issues.map((i) => i.wh), ...data.receipts.map((r) => r.wh)].filter(Boolean)));
+    const [wh, setWh] = useState("");
+    const inWh = (w) => wh === "" || w === wh;
     const inMonth = (d) => d && d.slice(0, 7) === month;
-    const prsF = data.prs.filter((p) => inMonth(p.date));
-    const receiptsF = data.receipts.filter((r) => inMonth(r.date));
-    const issuesF = data.issues.filter((w) => inMonth(w.date));
+    const prsF = data.prs.filter((p) => inMonth(p.date) && (wh === "" || (p.items || []).some((it) => it.wh === wh)));
+    const receiptsF = data.receipts.filter((r) => inMonth(r.date) && inWh(r.wh));
+    const issuesF = data.issues.filter((w) => inMonth(w.date) && inWh(w.wh));
 
     // ---- totals (quantities, not money) ----
     const prOpened = prsF.length;
@@ -65,6 +69,11 @@
               className: "input", value: month, onChange: (e) => setMonth(e.target.value),
               style: { width: "auto", minWidth: 160, fontWeight: 600 },
             }, months.map((m) => React.createElement("option", { key: m, value: m }, monthLabel(m, lang))))),
+          whList.length > 1 ? React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 8, font: "600 13px var(--font-th)", color: "var(--fg-muted)" } },
+            (lang === "en" ? "Warehouse" : "คลัง"),
+            React.createElement("select", { className: "input", value: wh, onChange: (e) => setWh(e.target.value), style: { width: "auto", minWidth: 120, fontWeight: 600 } },
+              React.createElement("option", { value: "" }, lang === "en" ? "All" : "ทุกคลัง"),
+              whList.map((w) => React.createElement("option", { key: w.id, value: w.id }, lang === "en" ? w.en : w.th)))) : null,
           React.createElement(window.Btn, { variant: "ghost", icon: React.createElement(window.IcPrint, { size: 16 }), onClick: () => window.print() }, t("print")),
           React.createElement(window.Btn, { variant: "primary", icon: React.createElement(window.IcSend, { size: 16 }), onClick: () => { window.print(); setToast(t("sum_send")); } }, t("sum_send")))),
       React.createElement("div", { className: "doc-sheet" },
@@ -74,7 +83,7 @@
             React.createElement("div", { className: "dh-co" }, t("company"), React.createElement("small", null, "Electric Bus (Thailand) Public Co., Ltd."))),
           React.createElement("div", { className: "dh-title" },
             React.createElement("b", null, t("sum_title")),
-            React.createElement("span", null, t("sum_period") + " · " + monthLabel(month, lang)))),
+            React.createElement("span", null, t("sum_period") + " · " + monthLabel(month, lang) + (wh ? " · " + ((D.whById(wh) || {}).th || "") : "")))),
 
         // KPI band — quantities only
         React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 26 } },

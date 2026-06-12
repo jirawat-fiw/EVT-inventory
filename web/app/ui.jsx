@@ -112,6 +112,19 @@
               o.sub ? React.createElement("small", null, o.sub) : null))) : null);
   }
 
+  // ---- warehouse filter (pills) — shows only warehouses that have data ----
+  function whWithData(allWh, idSet) {
+    return (allWh || []).filter((w) => idSet.has(w.id));
+  }
+  function WarehouseFilter({ value, onChange, list, lang, allLabel }) {
+    if (!list || list.length <= 1) return null; // มีคลังเดียว/ไม่มีข้อมูล → ไม่ต้องโชว์ตัวกรอง
+    return React.createElement("div", { className: "cat-row", style: { marginBottom: 4 } },
+      React.createElement("button", { className: "cat-pill" + (value === "" ? " on" : ""), onClick: () => onChange("") }, allLabel),
+      list.map((w) => React.createElement("button", {
+        key: w.id, className: "cat-pill" + (value === w.id ? " on" : ""), onClick: () => onChange(w.id),
+      }, lang === "en" ? w.en : w.th)));
+  }
+
   // PR aggregate helpers
   function prTotals(pr) {
     const D = window.EVTDATA;
@@ -124,5 +137,5 @@
     return { ordered, received, used, value, lines: pr.items.length };
   }
 
-  Object.assign(window, { StatusBadge, Badge, Btn, Card, CardHead, KPI, Field, Meter, Modal, Toast, SearchSelect, prTotals });
+  Object.assign(window, { StatusBadge, Badge, Btn, Card, CardHead, KPI, Field, Meter, Modal, Toast, SearchSelect, WarehouseFilter, whWithData, prTotals });
 })();

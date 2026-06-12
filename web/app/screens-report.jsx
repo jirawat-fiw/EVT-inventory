@@ -16,17 +16,31 @@
     const [cat, setCat] = useState("ทั้งหมด");
     const [q, setQ] = useState("");
     const [scan, setScan] = useState(false);
+    const [wh, setWh] = useState("");
+    const [busy, setBusy] = useState(false);
     const cats = ["ทั้งหมด", ...Array.from(new Set(data.parts.map((p) => p.cat)))];
+    const whList = window.whWithData(data.warehouses, new Set(data.parts.map((p) => p.wh)));
 
     function add(code) { setCart((c) => c.find((x) => x.code === code) ? c : [...c, { code, qty: 1 }]); }
     function setQty(code, q) { setCart((c) => c.map((x) => x.code === code ? { ...x, qty: Math.max(1, q) } : x)); }
     function remove(code) { setCart((c) => c.filter((x) => x.code !== code)); }
 
-    function submit() {
-      const issue = actions.withdraw(cart, { vehicle, job, jobTitle, by: data.currentUser });
-      setSlip({ ...issue, lines: cart.map((c) => ({ ...c, part: D.partByCode(c.code) })), vehicle, job, jobTitle });
-      setToast(t("wd_done"));
-      setCart([]); setVehicle(""); setJob(""); setJobTitle("");
+    async function submit() {
+      if (!cart.length || busy) return;
+      setBusy(true);
+      try {
+        const lines = cart.map((c) => ({ code: c.code, qty: c.qty, part: D.partByCode(c.code) }));
+        const ids = await actions.withdrawAndGet(cart, { vehicle, job, jobTitle, by: data.currentUser });
+        setSlip({
+          id: (ids && ids.length ? ids.join(", ") : "—"),
+          date: new Date().toISOString().slice(0, 10), by: data.currentUser,
+          vehicle, job, jobTitle, lines,
+        });
+        setToast(t("wd_done"));
+        setCart([]); setVehicle(""); setJob(""); setJobTitle("");
+      } catch (e) {
+        setToast((lang === "en" ? "Withdraw failed: " : "เบิกไม่สำเร็จ: ") + (e && e.message || ""));
+      } finally { setBusy(false); }
     }
 
     // จัดกลุ่มประวัติการเบิกเป็น "ครั้ง" (วันที่+งาน+รถ+ผู้เบิก) เพื่อพิมพ์ใบเบิกย้อนหลัง
@@ -49,6 +63,7 @@
     const qq = q.trim().toLowerCase();
     const list = data.parts.filter((p) =>
       (cat === "ทั้งหมด" || p.cat === cat)
+      && (wh === "" || p.wh === wh)
       && (!qq || p.code.toLowerCase().includes(qq) || (p.th || "").toLowerCase().includes(qq) || (p.en || "").toLowerCase().includes(qq)));
 
     function handleScan(code) {
@@ -77,6 +92,7 @@
                 React.createElement(window.IcSearch, { size: 17 }),
                 React.createElement("input", { value: q, onChange: (e) => setQ(e.target.value), placeholder: t("wd_search") })),
               React.createElement(window.Btn, { variant: "soft", icon: React.createElement(window.IcScan, { size: 16 }), onClick: () => setScan(true) }, t("scan_qr"))),
+            React.createElement(window.WarehouseFilter, { value: wh, onChange: setWh, list: whList, lang, allLabel: lang === "en" ? "All warehouses" : "ทุกคลัง" }),
             React.createElement("div", { className: "cat-row" },
               cats.map((c) => React.createElement("button", { key: c, className: "cat-pill" + (cat === c ? " on" : ""), onClick: () => setCat(c) }, c === "ทั้งหมด" ? t("all") : c))),
             React.createElement("div", { className: pickerStyle === "grid" ? "grid g-2" : "", style: pickerStyle === "grid" ? { gap: 10 } : { display: "flex", flexDirection: "column", gap: 8 } },
@@ -136,7 +152,7 @@
                   React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", margin: "16px 0" } },
                     React.createElement("span", { style: { font: "400 13px var(--font-th)", color: "var(--fg-subtle)" } }, t("item")),
                     React.createElement("b", { className: "mono", style: { font: "800 22px var(--font-en)", color: "var(--strong-green)" } }, cart.reduce((s, c) => s + c.qty, 0) + " " + t("pieces"))),
-                  React.createElement(window.Btn, { variant: "primary", block: true, icon: React.createElement(window.IcFile, { size: 17 }), onClick: submit }, t("wd_submit")))))),
+                  React.createElement(window.Btn, { variant: "primary", block: true, disabled: busy, icon: React.createElement(window.IcFile, { size: 17 }), onClick: submit }, busy ? (lang === "en" ? "Saving…" : "กำลังบันทึก…") : t("wd_submit")))))),
       React.createElement(window.Card, { style: { marginTop: 18 } },
         React.createElement(window.CardHead, { title: t("wd_history"), sub: histGroups.length + " " + t("item") }),
         React.createElement("div", { className: "card-pad" },

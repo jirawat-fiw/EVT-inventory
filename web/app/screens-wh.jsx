@@ -223,7 +223,9 @@
   function Inventory({ t, lang, data, go }) {
     const cats = ["ทั้งหมด", ...Array.from(new Set(data.parts.map((p) => p.cat)))];
     const [cat, setCat] = useState("ทั้งหมด");
-    const rows = data.parts.filter((p) => cat === "ทั้งหมด" || p.cat === cat);
+    const whList = window.whWithData(data.warehouses, new Set(data.parts.map((p) => p.wh)));
+    const [wh, setWh] = useState("");
+    const rows = data.parts.filter((p) => (cat === "ทั้งหมด" || p.cat === cat) && (wh === "" || p.wh === wh));
     return React.createElement("div", { className: "page fadein" },
       React.createElement("div", { className: "page-head" },
         React.createElement("div", null,
@@ -231,6 +233,7 @@
           React.createElement("h1", null, t("stk_title")),
           React.createElement("p", null, t("stk_sub"))),
         React.createElement(window.Btn, { variant: "soft", icon: React.createElement(window.IcWithdraw, { size: 16 }), onClick: () => go("withdraw") }, t("nav_withdraw"))),
+      React.createElement(window.WarehouseFilter, { value: wh, onChange: setWh, list: whList, lang, allLabel: lang === "en" ? "All warehouses" : "ทุกคลัง" }),
       React.createElement("div", { className: "cat-row" },
         cats.map((c) => React.createElement("button", { key: c, className: "cat-pill" + (cat === c ? " on" : ""), onClick: () => setCat(c) }, c === "ทั้งหมด" ? t("all") : c))),
       React.createElement(window.Card, null,

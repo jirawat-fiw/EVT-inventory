@@ -90,6 +90,11 @@
         await D.api[fn](id);
         await refresh();
       },
+      async withdrawAndGet(cart, info) {
+        const ids = await D.api.withdraw(cart, info);
+        await refresh();
+        return ids || [];
+      },
       async adminImport(entity, rows) {
         const fn = { vehicle: "importVehicles", part: "importParts" }[entity];
         const n = await D.api[fn](rows);

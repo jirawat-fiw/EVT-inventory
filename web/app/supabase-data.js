@@ -143,7 +143,7 @@
       if (error) throw error;
     },
     async withdraw(cart, info) {
-      const { error } = await sb.rpc("withdraw_parts", {
+      const { data, error } = await sb.rpc("withdraw_parts", {
         p_cart: cart.map((c) => ({ code: c.code, qty: c.qty })),
         p_meta: {
           by: info.by || "", dept: info.dept || "21",
@@ -152,6 +152,7 @@
         },
       });
       if (error) throw error;
+      return data || []; // array ของเลขใบเบิก (WD ids) ที่ออกให้
     },
 
     // ---- จัดการข้อมูลหลัก (admin CRUD) ----
