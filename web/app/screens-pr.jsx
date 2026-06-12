@@ -36,12 +36,21 @@
     const all = lines.join("\n");
 
     // เลขที่ PR — เผื่อ OCR สับสน O↔0, I/l↔1, S↔5, B↔8
-    let prCode = "";
-    const pm = all.match(/P\s*R\s*[:.\-]?\s*([0-9OoIlSsBb]{4,})/);
-    if (pm) {
-      const num = pm[1].replace(/[Oo]/g, "0").replace(/[Il]/g, "1")
-        .replace(/[Ss]/g, "5").replace(/[Bb]/g, "8").replace(/\D/g, "");
-      if (num.length >= 4) prCode = "PR" + num;
+    const deOcr = (s) => s.replace(/[Oo]/g, "0").replace(/[Il]/g, "1")
+      .replace(/[Ss]/g, "5").replace(/[Bb]/g, "8").replace(/\D/g, "");
+    let prCode = "", prDigits = "";
+    // หาในบรรทัดส่วนหัวที่มีคำว่า PR / เลขที่ใบขอ / อนุมัติ
+    for (const ln of lines.slice(0, 14)) {
+      if (!/PR|เลขที่ใบ|อนุมัติ|ใบขอซื้อ/i.test(ln)) continue;
+      const cand = ln.match(/([0-9OoIlSsBb]{5,9})\b/);
+      if (cand) {
+        const num = deOcr(cand[1]);
+        if (num.length >= 5 && num.length <= 9) { prDigits = num; prCode = "PR" + num; break; }
+      }
+    }
+    if (!prCode) {
+      const pm = all.match(/P\s*R\s*[:.\-]?\s*([0-9OoIlSsBb]{5,9})/);
+      if (pm) { const num = deOcr(pm[1]); if (num.length >= 5) { prDigits = num; prCode = "PR" + num; } }
     }
 
     // วันที่ (พ.ศ. dd/mm/yy -> ISO)
@@ -58,8 +67,11 @@
     const unitRe = "(?:ตัว|ชุด|ชิ้น|เส้น|อัน|ดวง|บาน|ก้อน|กล่อง|ม้วน|คู่|แผ่น|ตลับ|หลอด)";
     const items = [];
     lines.forEach((ln) => {
+      // ข้ามบรรทัดส่วนหัว/เลขที่เอกสาร ไม่ให้กลายเป็นรายการ
+      if (/รหัสสินค้า|จำนวนขอ|เลขที่ใบ|อนุมัติ|ภาษี|เลขประจำตัว|ใบขอซื้อ/.test(ln)) return;
       const code = ln.match(/\b\d{6,8}\b/);
       if (!code) return;
+      if (prDigits && code[0] === prDigits) return;   // กันเลขที่ PR หลุดมาเป็นรายการ
       const after = ln.slice(ln.indexOf(code[0]) + code[0].length);
       // คลัง = เลข 2 หลัก 0X ตัวแรกหลังรหัส (เช่น 04)
       const whm = after.match(/\b(0[1-9])\b/);
