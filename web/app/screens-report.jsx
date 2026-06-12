@@ -12,9 +12,6 @@
     const [vehicle, setVehicle] = useState("");
     const [job, setJob] = useState("");
     const [jobTitle, setJobTitle] = useState("");
-    const maintDeptId = ((data.departments || []).find((d) => ((d.th || "") + (d.detail || "")).includes("ซ่อมบำรุง"))
-      || (data.departments || []).find((d) => d.id === "21") || (data.departments || [])[0] || {}).id || "";
-    const [dept, setDept] = useState(maintDeptId);
     const [slip, setSlip] = useState(null);
     const [cat, setCat] = useState("ทั้งหมด");
     const [q, setQ] = useState("");
@@ -26,8 +23,8 @@
     function remove(code) { setCart((c) => c.filter((x) => x.code !== code)); }
 
     function submit() {
-      const issue = actions.withdraw(cart, { vehicle, job, jobTitle, dept, by: data.currentUser });
-      setSlip({ ...issue, dept, lines: cart.map((c) => ({ ...c, part: D.partByCode(c.code) })), vehicle, job, jobTitle });
+      const issue = actions.withdraw(cart, { vehicle, job, jobTitle, by: data.currentUser });
+      setSlip({ ...issue, lines: cart.map((c) => ({ ...c, part: D.partByCode(c.code) })), vehicle, job, jobTitle });
       setToast(t("wd_done"));
       setCart([]); setVehicle(""); setJob(""); setJobTitle("");
     }
@@ -118,10 +115,7 @@
                   }),
                   React.createElement("hr", { className: "hr", style: { margin: "8px 0 16px" } }),
                   React.createElement("div", { style: { font: "600 12px var(--font-th)", color: "var(--fg-muted)", marginBottom: 10 } }, t("wd_link_job")),
-                  React.createElement(window.Field, { label: t("wd_dept") },
-                    React.createElement("select", { className: "input", value: dept, onChange: (e) => setDept(e.target.value), style: { width: "100%" } },
-                      (data.departments || []).map((d) => React.createElement("option", { key: d.id, value: d.id }, d.th)))),
-                  React.createElement("div", { className: "grid g-2", style: { gap: 12, margin: "12px 0" } },
+                  React.createElement("div", { className: "grid g-2", style: { gap: 12, marginBottom: 12 } },
                     React.createElement(window.Field, { label: t("wd_vehicle") },
                       React.createElement(window.SearchSelect, {
                         value: vehicle,
@@ -168,7 +162,7 @@
 
   // ---- Issue slip (printable) ----
   function IssueSlip({ t, lang, slip, role, onBack }) {
-    const dep = D.deptById(slip.dept || "21");
+    const deptLabel = lang === "en" ? "Maintenance Dept." : "แผนกซ่อมบำรุง"; // ป้ายคงที่บนใบปริ้น
     const veh = slip.vehicle ? D.vehById(slip.vehicle) : null;
     return React.createElement("div", { className: "page fadein" },
       React.createElement("div", { className: "page-head no-print" },
@@ -190,7 +184,7 @@
         React.createElement("div", { className: "doc-meta" },
           docM(t("issue_no"), slip.id, true),
           docM(t("date"), fmtDate(slip.date, lang)),
-          docM(t("dept"), lang === "en" ? dep.en : dep.th),
+          docM(t("dept"), deptLabel),
           docM(t("wd_vehicle"), veh ? `${veh.id} (${veh.plate})` : t("wd_no_job")),
           docM(t("chassis"), veh ? veh.chassis : "—", true),
           docM(t("wd_job"), slip.job || "—", true)),
