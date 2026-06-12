@@ -4,3 +4,8 @@
 [build]
   publish = "web"
   command = ""
+
+# Netlify Functions (สแกน PR ด้วย Claude วิชัน) — เรียกที่ /.netlify/functions/extract-pr
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

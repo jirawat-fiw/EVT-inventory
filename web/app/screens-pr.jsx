@@ -17,29 +17,19 @@
     return { b64, mediaType: "image/jpeg" };
   }
 
-  // ---- real OCR extraction via the built-in vision model ----
+  // ---- OCR extraction via Netlify Function -> Claude vision ----
   async function aiExtractPR(b64, mediaType) {
-    const prompt = [
-      "You read a Thai purchase requisition (\u0e43\u0e1a\u0e02\u0e2d\u0e0b\u0e37\u0e49\u0e2d / PR) from the image and return ONLY a JSON object \u2014 no markdown, no commentary.",
-      'Shape: {"prCode":"","date":"YYYY-MM-DD","deptName":"","requester":"","requesterUnit":"","note":"","items":[{"code":"","desc":"","qty":0,"unit":""}]}',
-      "Rules:",
-      "- prCode: the PR number. It is in the TOP-RIGHT box, on the line labeled \u0e40\u0e25\u0e02\u0e17\u0e35\u0e48\u0e43\u0e1a\u0e02\u0e2d\u0e2d\u0e19\u0e38\u0e21\u0e31\u0e15\u0e34\u0e0b\u0e37\u0e49\u0e2d, and usually starts with the letters 'PR'. Copy it exactly. Do NOT use the phone number, tax ID (\u0e40\u0e25\u0e02\u0e1b\u0e23\u0e30\u0e08\u0e33\u0e15\u0e31\u0e27\u0e1c\u0e39\u0e49\u0e40\u0e2a\u0e35\u0e22\u0e20\u0e32\u0e29\u0e35), or the address numbers in the header.",
-      "- date: the document date on the line labeled \u0e27\u0e31\u0e19\u0e17\u0e35\u0e48 (top-right, next to the PR number). Do NOT use \u0e27\u0e31\u0e19\u0e17\u0e35\u0e48\u0e23\u0e31\u0e1a\u0e02\u0e2d\u0e07. Thai dates are dd/mm/yy where yy is the last two digits of the Buddhist year. Convert to Gregorian ISO by subtracting 543 from the full BE year. Example 08/06/69 -> 2026-06-08.",
-      "- deptName: the department line text (\u0e41\u0e1c\u0e19\u0e01 ...).",
-      "- requester: the person who prepared it (\u0e1c\u0e39\u0e49\u0e08\u0e31\u0e14\u0e17\u0e33 / \u0e1a\u0e31\u0e19\u0e17\u0e36\u0e01\u0e42\u0e14\u0e22), else empty string.",
-      "- requesterUnit: the department / project description.",
-      "- note: the \u0e2b\u0e21\u0e32\u0e22\u0e40\u0e2b\u0e15\u0e38 text, else empty string.",
-      "- items: one entry per table row. code = \u0e23\u0e2b\u0e31\u0e2a\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32, desc = \u0e23\u0e32\u0e22\u0e25\u0e30\u0e40\u0e2d\u0e35\u0e22\u0e14, qty = \u0e08\u0e33\u0e19\u0e27\u0e19\u0e02\u0e2d\u0e0b\u0e37\u0e49\u0e2d (number only), unit = \u0e2b\u0e19\u0e48\u0e27\u0e22.",
-      "Return strictly valid JSON only.",
-    ].join("\n");
-    const out = await window.claude.complete({ messages: [{ role: "user", content: [
-      { type: "image", source: { type: "base64", media_type: mediaType, data: b64 } },
-      { type: "text", text: prompt },
-    ] }] });
-    let txt = String(out || "").trim();
-    const m = txt.match(/\{[\s\S]*\}/);
-    if (m) txt = m[0];
-    return JSON.parse(txt);
+    const r = await fetch("/.netlify/functions/extract-pr", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ image: b64, mediaType }),
+    });
+    if (!r.ok) {
+      let detail = "";
+      try { detail = (await r.json()).error || ""; } catch (e) {}
+      throw new Error(detail || ("HTTP " + r.status));
+    }
+    return await r.json();
   }
 
   // ============================================================
@@ -94,7 +84,6 @@
       setImgUrl(dataUrl);
       setPhase(1);
       try {
-        if (!window.claude || !window.claude.complete) throw new Error("no-ai");
         const prepped = await prepImage(dataUrl);
         const ex = await aiExtractPR(prepped.b64, prepped.mediaType);
         const ids = D.departments.map((d) => d.id);
