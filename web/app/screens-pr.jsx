@@ -17,19 +17,50 @@
     return { b64, mediaType: "image/jpeg" };
   }
 
-  // ---- OCR extraction via Netlify Function -> Claude vision ----
-  async function aiExtractPR(b64, mediaType) {
-    const r = await fetch("/.netlify/functions/extract-pr", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ image: b64, mediaType }),
+  // ---- OCR ฟรีในเบราว์เซอร์ (Tesseract.js) — รูปไม่ออกจากเครื่อง ----
+  async function ocrExtractPR(dataUrl) {
+    if (!window.Tesseract) throw new Error("no-ai");
+    const { data } = await window.Tesseract.recognize(dataUrl, "tha+eng");
+    return parseThaiPR((data && data.text) || "");
+  }
+
+  function beToIso(d, m, yy) {
+    const beYear = 2500 + Number(yy);          // 69 -> 2569
+    const pad = (n) => String(n).padStart(2, "0");
+    return (beYear - 543) + "-" + pad(m) + "-" + pad(d);  // -> 2026-05-15
+  }
+
+  // แยกข้อความดิบจาก OCR เป็นโครงสร้าง PR แบบ best-effort (ผู้ใช้ตรวจ/แก้ต่อ)
+  function parseThaiPR(text) {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const all = lines.join("\n");
+    let prCode = "";
+    const pr = all.match(/PR\s?\d{5,}/i);
+    if (pr) prCode = pr[0].replace(/\s+/g, "");
+    let date = new Date().toISOString().slice(0, 10);
+    const dm = all.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})\b/);
+    if (dm) { try { date = beToIso(+dm[1], +dm[2], dm[3]); } catch (e) {} }
+    let deptId = "";
+    const de = all.match(/แผนก[^0-9]{0,6}(\d{1,3}(?:-\d)?)/);
+    if (de) deptId = de[1];
+
+    const unitRe = "(?:ตัว|ชุด|ชิ้น|เส้น|อัน|ดวง|บาน|ก้อน|กล่อง|ม้วน|คู่|แผ่น|ตลับ)";
+    const items = [];
+    lines.forEach((ln) => {
+      const code = ln.match(/\b\d{6,8}\b/);
+      const qtyU = ln.match(new RegExp("(\\d+(?:\\.\\d+)?)\\s*(" + unitRe + ")"));
+      if (code && qtyU) {
+        let desc = ln.replace(code[0], " ").replace(qtyU[0], " ").replace(/\b\d+\b/g, " ").replace(/\s+/g, " ").trim();
+        items.push({ code: code[0], desc: desc, qty: Number(qtyU[1]) || 1, unit: qtyU[2] });
+      }
     });
-    if (!r.ok) {
-      let detail = "";
-      try { detail = (await r.json()).error || ""; } catch (e) {}
-      throw new Error(detail || ("HTTP " + r.status));
-    }
-    return await r.json();
+    if (!items.length) items.push({ code: "", desc: "", qty: 1, unit: "ชิ้น" });
+
+    return {
+      prCode, date, deptId, deptName: "", requester: "", requesterUnit: "",
+      note: "อ่านด้วย OCR ฟรี (Tesseract) — โปรดตรวจสอบและแก้ไขให้ถูกต้อง\n\n" + all.slice(0, 1200),
+      items,
+    };
   }
 
   // ============================================================
@@ -84,8 +115,7 @@
       setImgUrl(dataUrl);
       setPhase(1);
       try {
-        const prepped = await prepImage(dataUrl);
-        const ex = await aiExtractPR(prepped.b64, prepped.mediaType);
+        const ex = await ocrExtractPR(dataUrl);
         const ids = D.departments.map((d) => d.id);
         const deptId = ids.indexOf(ex.deptId) >= 0 ? ex.deptId : D.departments[0].id;
         setForm({
