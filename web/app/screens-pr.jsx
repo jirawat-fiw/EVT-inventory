@@ -91,7 +91,7 @@
 
     return {
       prCode, date, deptId, deptName: "", requester: "", requesterUnit: "",
-      note: "อ่านด้วย OCR ฟรี (Tesseract) — โปรดตรวจสอบและแก้ไขให้ถูกต้อง\n\n" + all.slice(0, 1200),
+      note: "",
       items,
     };
   }
@@ -192,7 +192,7 @@
       const pr = {
         id: form.prCode, date: form.date, dept: form.deptId, requester: form.requester,
         requesterUnit: form.requesterUnit, status: "pending", scanned: !manual, note: form.note,
-        items: form.items.map((it) => ({ code: it.code, qty: Number(it.qty) || 0, received: 0, used: 0, wh: it.wh, unit: it.unit })),
+        items: form.items.map((it) => ({ code: it.code, desc: it.desc, qty: Number(it.qty) || 0, received: 0, used: 0, wh: it.wh, unit: it.unit })),
       };
       actions.savePR(pr);
       setSavedId(form.prCode);

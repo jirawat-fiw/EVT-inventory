@@ -102,13 +102,35 @@
         scanned: !!pr.scanned, note: pr.note,
       })).error;
       if (e1) throw e1;
-      if (pr.items && pr.items.length) {
-        let e2 = (await sb.from("pr_items").insert(pr.items.map((it) => ({
-          pr_id: pr.id, part_code: it.code, qty: it.qty,
-          received: it.received || 0, used: it.used || 0, warehouse_id: it.wh, unit: it.unit,
-        })))).error;
+
+      // เก็บเฉพาะรายการที่มีรหัส และตัดรหัสซ้ำ (กัน unique constraint)
+      const seen = new Set();
+      const items = (pr.items || []).filter((it) => {
+        const c = (it.code || "").trim();
+        if (!c || seen.has(c)) return false;
+        seen.add(c); return true;
+      });
+      if (!items.length) return;
+
+      // สร้างอะไหล่ใหม่อัตโนมัติ สำหรับรหัสที่ยังไม่มีในคลัง (pr_items มี FK ผูก parts)
+      const codes = items.map((it) => it.code.trim());
+      const { data: existing } = await sb.from("parts").select("code").in("code", codes);
+      const have = new Set((existing || []).map((p) => p.code));
+      const stubs = items.filter((it) => !have.has(it.code.trim())).map((it) => ({
+        code: it.code.trim(), name_th: (it.desc || "").trim() || it.code.trim(), name_en: null,
+        unit: it.unit || "ชิ้น", unit_en: null, warehouse_id: it.wh || null,
+        stock: 0, min: 0, price: 0, category: "จาก PR (สแกน)",
+      }));
+      if (stubs.length) {
+        let e2 = (await sb.from("parts").insert(stubs)).error;
         if (e2) throw e2;
       }
+
+      let e3 = (await sb.from("pr_items").insert(items.map((it) => ({
+        pr_id: pr.id, part_code: it.code.trim(), qty: it.qty,
+        received: it.received || 0, used: it.used || 0, warehouse_id: it.wh, unit: it.unit,
+      })))).error;
+      if (e3) throw e3;
     },
     async receive(prId, recv) {
       const lines = Object.entries(recv)
