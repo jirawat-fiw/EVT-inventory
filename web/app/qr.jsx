@@ -56,6 +56,22 @@
                 if (codes && codes[0] && codes[0].rawValue) submit(codes[0].rawValue);
               } catch (e) { /* keep scanning */ }
             }, 350);
+          } else if (window.jsQR) {
+            // เบราว์เซอร์ไม่มี BarcodeDetector (Safari/iOS, Firefox ฯลฯ) → ใช้ jsQR ถอดจากเฟรมวิดีโอ
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            timer = setInterval(() => {
+              const v = videoRef.current;
+              if (!v || v.readyState < 2) return;
+              const w = v.videoWidth, h = v.videoHeight;
+              if (!w || !h) return;
+              canvas.width = w; canvas.height = h;
+              ctx.drawImage(v, 0, 0, w, h);
+              let img;
+              try { img = ctx.getImageData(0, 0, w, h); } catch (e) { return; }
+              const res = window.jsQR(img.data, w, h, { inversionAttempts: "dontInvert" });
+              if (res && res.data) submit(res.data);
+            }, 300);
           }
         } catch (e) { setErr("cam"); }
       }
