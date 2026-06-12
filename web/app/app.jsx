@@ -327,8 +327,8 @@
   // ---------- bootstrap ----------
   const root = ReactDOM.createRoot(document.getElementById("root"));
   let booting = false;
+  let currentUid = null;
   async function enter(session) {
-    if (!session) { root.render(React.createElement(Login)); return; }
     if (booting) return; booting = true;
     root.render(React.createElement(Splash));
     try {
@@ -343,7 +343,16 @@
   (async function boot() {
     if (!D.configured || !sb) { root.render(React.createElement(ConfigNeeded)); return; }
     const { data } = await sb.auth.getSession();
-    sb.auth.onAuthStateChange((_evt, session) => enter(session));
-    enter(data.session);
+    currentUid = data.session && data.session.user ? data.session.user.id : null;
+    if (currentUid) enter(data.session); else root.render(React.createElement(Login));
+
+    // เปลี่ยนหน้าจอ "เฉพาะตอนเข้า/ออกระบบจริง" เท่านั้น
+    // เหตุการณ์ต่ออายุ token หรือสลับแท็บกลับมา (ผู้ใช้คนเดิม) จะไม่ remount → ข้อมูลที่กรอกค้างไม่หาย
+    sb.auth.onAuthStateChange((_evt, session) => {
+      const uid = session && session.user ? session.user.id : null;
+      if (uid === currentUid) return;
+      currentUid = uid;
+      if (uid) enter(session); else root.render(React.createElement(Login));
+    });
   })();
 })();
