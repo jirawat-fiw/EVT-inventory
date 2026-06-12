@@ -205,6 +205,33 @@
       if (e2) throw e2;
     },
 
+    // ลบรายการเบิก (WD): คืนสต็อกกลับเข้าคลัง + ปรับยอดใช้ใน PR + ลบใบเบิก
+    async deleteIssue(id) {
+      const { data: iss } = await sb.from("issues")
+        .select("part_code, qty, pr_ref").eq("id", id).maybeSingle();
+      if (iss) {
+        const { data: part } = await sb.from("parts")
+          .select("stock").eq("code", iss.part_code).maybeSingle();
+        if (part) {
+          let e1 = (await sb.from("parts")
+            .update({ stock: (part.stock || 0) + (iss.qty || 0) })
+            .eq("code", iss.part_code)).error;
+          if (e1) throw e1;
+        }
+        if (iss.pr_ref) {
+          const { data: pi } = await sb.from("pr_items")
+            .select("used").eq("pr_id", iss.pr_ref).eq("part_code", iss.part_code).maybeSingle();
+          if (pi) {
+            await sb.from("pr_items")
+              .update({ used: Math.max(0, (pi.used || 0) - (iss.qty || 0)) })
+              .eq("pr_id", iss.pr_ref).eq("part_code", iss.part_code);
+          }
+        }
+      }
+      let e2 = (await sb.from("issues").delete().eq("id", id)).error;
+      if (e2) throw e2;
+    },
+
     // ---- นำเข้าทีละหลายรายการ (bulk import, upsert ตาม PK) ----
     async importVehicles(rows) {
       const clean = rows.filter((r) => (r.id || "").trim());

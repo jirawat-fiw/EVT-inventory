@@ -86,7 +86,7 @@
         await refresh();
       },
       async adminDelete(entity, id) {
-        const fn = { part: "deletePart", vehicle: "deleteVehicle", dept: "deleteDept", warehouse: "deleteWarehouse", pr: "deletePR" }[entity];
+        const fn = { part: "deletePart", vehicle: "deleteVehicle", dept: "deleteDept", warehouse: "deleteWarehouse", pr: "deletePR", issue: "deleteIssue" }[entity];
         await D.api[fn](id);
         await refresh();
       },

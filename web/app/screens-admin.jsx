@@ -126,6 +126,21 @@
         fields: [],
         blank: () => ({}),
       },
+      issue: {
+        label: L(lang, "เบิก (WD)", "Issues"), pk: "id", list: data.issues, noAdd: true, noEdit: true,
+        delWarn: L(lang, "จะคืนจำนวนที่เบิกกลับเข้าสต็อกอะไหล่ และปรับยอดใช้ใน PR (ถ้ามีอ้างอิง)",
+                        "Returns the issued qty back to stock and adjusts PR usage (if linked)"),
+        cols: [
+          { k: "id", h: L(lang, "เลขที่", "WD No."), mono: true },
+          { k: "date", h: L(lang, "วันที่", "Date") },
+          { k: "code", h: L(lang, "อะไหล่", "Part"), mono: true },
+          { k: "qty", h: L(lang, "จำนวน", "Qty"), num: true },
+          { k: "vehicle", h: L(lang, "รถ", "Vehicle"), main: true },
+          { k: "by", h: L(lang, "ผู้เบิก", "By") },
+        ],
+        fields: [],
+        blank: () => ({}),
+      },
       warehouse: {
         label: L(lang, "คลัง", "Warehouses"), pk: "id", list: data.warehouses,
         cols: [
