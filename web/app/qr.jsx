@@ -47,17 +47,8 @@
           stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
           if (stopped) { stream.getTracks().forEach((x) => x.stop()); return; }
           if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
-          if ("BarcodeDetector" in window) {
-            const det = new window.BarcodeDetector({ formats: ["qr_code"] });
-            timer = setInterval(async () => {
-              try {
-                if (!videoRef.current || videoRef.current.readyState < 2) return;
-                const codes = await det.detect(videoRef.current);
-                if (codes && codes[0] && codes[0].rawValue) submit(codes[0].rawValue);
-              } catch (e) { /* keep scanning */ }
-            }, 350);
-          } else if (window.jsQR) {
-            // เบราว์เซอร์ไม่มี BarcodeDetector (Safari/iOS, Firefox ฯลฯ) → ใช้ jsQR ถอดจากเฟรมวิดีโอ
+          // ใช้ jsQR เป็นหลัก (ทำงานได้ทุกเบราว์เซอร์ รวมถึงเครื่องที่ BarcodeDetector เสีย)
+          if (window.jsQR) {
             const canvas = document.createElement("canvas");
             const ctx = canvas.getContext("2d", { willReadFrequently: true });
             timer = setInterval(() => {
@@ -69,9 +60,18 @@
               ctx.drawImage(v, 0, 0, w, h);
               let img;
               try { img = ctx.getImageData(0, 0, w, h); } catch (e) { return; }
-              const res = window.jsQR(img.data, w, h, { inversionAttempts: "dontInvert" });
+              const res = window.jsQR(img.data, w, h, { inversionAttempts: "attemptBoth" });
               if (res && res.data) submit(res.data);
-            }, 300);
+            }, 250);
+          } else if ("BarcodeDetector" in window) {
+            const det = new window.BarcodeDetector({ formats: ["qr_code"] });
+            timer = setInterval(async () => {
+              try {
+                if (!videoRef.current || videoRef.current.readyState < 2) return;
+                const codes = await det.detect(videoRef.current);
+                if (codes && codes[0] && codes[0].rawValue) submit(codes[0].rawValue);
+              } catch (e) { /* keep scanning */ }
+            }, 350);
           }
         } catch (e) { setErr("cam"); }
       }
