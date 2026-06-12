@@ -34,27 +34,48 @@
   function parseThaiPR(text) {
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const all = lines.join("\n");
+
+    // เลขที่ PR — เผื่อ OCR สับสน O↔0, I/l↔1, S↔5, B↔8
     let prCode = "";
-    const pr = all.match(/PR\s?\d{5,}/i);
-    if (pr) prCode = pr[0].replace(/\s+/g, "");
+    const pm = all.match(/P\s*R\s*[:.\-]?\s*([0-9OoIlSsBb]{4,})/);
+    if (pm) {
+      const num = pm[1].replace(/[Oo]/g, "0").replace(/[Il]/g, "1")
+        .replace(/[Ss]/g, "5").replace(/[Bb]/g, "8").replace(/\D/g, "");
+      if (num.length >= 4) prCode = "PR" + num;
+    }
+
+    // วันที่ (พ.ศ. dd/mm/yy -> ISO)
     let date = new Date().toISOString().slice(0, 10);
     const dm = all.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})\b/);
     if (dm) { try { date = beToIso(+dm[1], +dm[2], dm[3]); } catch (e) {} }
+
+    // แผนก
     let deptId = "";
-    const de = all.match(/แผนก[^0-9]{0,6}(\d{1,3}(?:-\d)?)/);
+    const de = all.match(/แผนก[^0-9]{0,8}(\d{1,3}(?:-\d)?)/);
     if (de) deptId = de[1];
 
-    const unitRe = "(?:ตัว|ชุด|ชิ้น|เส้น|อัน|ดวง|บาน|ก้อน|กล่อง|ม้วน|คู่|แผ่น|ตลับ)";
+    // รายการ — ทุกบรรทัดที่มีรหัส 6–8 หลัก (รับแถวที่จำนวนอ่านไม่ออกด้วย)
+    const unitRe = "(?:ตัว|ชุด|ชิ้น|เส้น|อัน|ดวง|บาน|ก้อน|กล่อง|ม้วน|คู่|แผ่น|ตลับ|หลอด)";
     const items = [];
     lines.forEach((ln) => {
       const code = ln.match(/\b\d{6,8}\b/);
+      if (!code) return;
+      const after = ln.slice(ln.indexOf(code[0]) + code[0].length);
+      // คลัง = เลข 2 หลัก 0X ตัวแรกหลังรหัส (เช่น 04)
+      const whm = after.match(/\b(0[1-9])\b/);
+      const wh = whm ? ("WH-" + whm[1]) : "WH-01";
+      // จำนวน = ตัวเลขที่ตามด้วยหน่วย (คือคอลัมน์จำนวนขอซื้อ ไม่ใช่คงเหลือ)
       const qtyU = ln.match(new RegExp("(\\d+(?:\\.\\d+)?)\\s*(" + unitRe + ")"));
-      if (code && qtyU) {
-        let desc = ln.replace(code[0], " ").replace(qtyU[0], " ").replace(/\b\d+\b/g, " ").replace(/\s+/g, " ").trim();
-        items.push({ code: code[0], desc: desc, qty: Number(qtyU[1]) || 1, unit: qtyU[2] });
-      }
+      // รายละเอียด = ข้อความก่อนตัวเลขตัวแรก (ตัดคอลัมน์ตัวเลขทิ้ง)
+      let desc = (after.split(/\s+\d/)[0] || "").replace(/[\/\\|]+/g, " ").replace(/\s+/g, " ").trim();
+      items.push({
+        code: code[0], desc,
+        qty: qtyU ? (Number(qtyU[1]) || 1) : 1,
+        unit: qtyU ? qtyU[2] : "ตัว",
+        wh,
+      });
     });
-    if (!items.length) items.push({ code: "", desc: "", qty: 1, unit: "ชิ้น" });
+    if (!items.length) items.push({ code: "", desc: "", qty: 1, unit: "ชิ้น", wh: "WH-01" });
 
     return {
       prCode, date, deptId, deptName: "", requester: "", requesterUnit: "",
@@ -132,7 +153,7 @@
               desc: p ? (lang === "en" ? p.en : p.th) : (it.desc || ""),
               qty: Number(it.qty) || 1,
               unit: p ? p.unit : (it.unit || "\u0e0a\u0e34\u0e49\u0e19"),
-              wh: p ? p.wh : "WH-01",
+              wh: p ? p.wh : (it.wh || "WH-01"),
               conf: p ? 1 : 0.7,
             };
           }),
