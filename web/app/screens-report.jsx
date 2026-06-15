@@ -1,6 +1,6 @@
 /* EVT — Withdraw + issue slip, PR detail modal, Monthly report */
 (function () {
-  const { useState } = React;
+  const { useState, useEffect } = React;
   const D = window.EVTDATA;
   const fmtDate = window.fmtDate;
 
@@ -8,10 +8,12 @@
   //  WITHDRAW
   // ============================================================
   function Withdraw({ t, lang, data, actions, setToast, role, pickerStyle }) {
-    const [cart, setCart] = useState([]); // [{code, qty}]
-    const [vehicle, setVehicle] = useState("");
-    const [job, setJob] = useState("");
-    const [jobTitle, setJobTitle] = useState("");
+    const WD_DRAFT = "evt_draft_wd";
+    const _wd = (() => { try { return JSON.parse(localStorage.getItem(WD_DRAFT) || "null") || {}; } catch (e) { return {}; } })();
+    const [cart, setCart] = useState(() => _wd.cart || []); // [{code, qty}]
+    const [vehicle, setVehicle] = useState(() => _wd.vehicle || "");
+    const [job, setJob] = useState(() => _wd.job || "");
+    const [jobTitle, setJobTitle] = useState(() => _wd.jobTitle || "");
     const [slip, setSlip] = useState(null);
     const [cat, setCat] = useState("ทั้งหมด");
     const [q, setQ] = useState("");
@@ -20,6 +22,10 @@
     const [busy, setBusy] = useState(false);
     const cats = ["ทั้งหมด", ...Array.from(new Set(data.parts.map((p) => p.cat)))];
     const whList = window.whWithData(data.warehouses, new Set(data.parts.map((p) => p.wh)));
+    // เก็บร่างตะกร้าเบิกอัตโนมัติ (กันหายตอนรีโหลด/มือถือล้างแท็บ)
+    useEffect(() => {
+      try { localStorage.setItem(WD_DRAFT, JSON.stringify({ cart, vehicle, job, jobTitle })); } catch (e) {}
+    }, [cart, vehicle, job, jobTitle]);
 
     function add(code) { setCart((c) => c.find((x) => x.code === code) ? c : [...c, { code, qty: 1 }]); }
     function setQty(code, q) { setCart((c) => c.map((x) => x.code === code ? { ...x, qty: Math.max(1, q) } : x)); }

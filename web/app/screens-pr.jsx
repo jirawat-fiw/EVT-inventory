@@ -1,6 +1,6 @@
 /* EVT — Open PR (scan + OCR) and PR Registry screens */
 (function () {
-  const { useState, useRef } = React;
+  const { useState, useRef, useEffect } = React;
   const D = window.EVTDATA;
 
   // ---- normalise image before OCR: upscale small scans to ~1700px and JPEG-compress under the request limit ----
@@ -63,35 +63,47 @@
     const de = all.match(/แผนก[^0-9]{0,8}(\d{1,3}(?:-\d)?)/);
     if (de) deptId = de[1];
 
-    // รายการ — ทุกบรรทัดที่มีรหัส 6–8 หลัก (รับแถวที่จำนวนอ่านไม่ออกด้วย)
-    const unitRe = "(?:ตัว|ชุด|ชิ้น|เส้น|อัน|ดวง|บาน|ก้อน|กล่อง|ม้วน|คู่|แผ่น|ตลับ|หลอด)";
+    // หมายเหตุ — ดึงจากบล็อกท้ายเอกสาร (occurrence สุดท้ายของคำว่า "หมายเหตุ")
+    let note = "", noteIdx = -1;
+    for (let i = 0; i < lines.length; i++) if (/หมายเหตุ/.test(lines[i])) noteIdx = i;
+    if (noteIdx >= 0) {
+      const parts = [];
+      for (let i = noteIdx; i < lines.length && parts.join(" ").length < 240; i++) {
+        let ln = lines[i].replace(/^.*?หมายเหตุ\s*[:：]?\s*/, "");
+        if (/ผู้ขอ|ผู้อนุมัติ|ผู้รับ|อนุมัติโดย|ลงชื่อ|ลายเซ็น|ผู้จัดทำ/.test(ln)) break;
+        ln = ln.trim();
+        if (ln) parts.push(ln);
+      }
+      note = parts.join(" ").trim();
+    }
+
+    // รายการ — บรรทัดที่มี "จำนวน + หน่วย" (กันบรรทัดที่อยู่/เบอร์โทร/ภาษี)
+    const unitRe = "(?:ตัว|ชุด|ชิ้น|เส้น|อัน|ดวง|บาน|ก้อน|กล่อง|ม้วน|คู่|แผ่น|ตลับ|หลอด|แผง|ใบ|ลูก|เมตร|ม\\.|กก\\.|กิโลกรัม|ลิตร|แกลลอน|ขวด|ถุง|ห่อ|แพ็ค|แพค|แท่ง|โหล)";
     const items = [];
-    lines.forEach((ln) => {
-      // ข้ามบรรทัดส่วนหัว/เลขที่เอกสาร ไม่ให้กลายเป็นรายการ
-      if (/รหัสสินค้า|จำนวนขอ|เลขที่ใบ|อนุมัติ|ภาษี|เลขประจำตัว|ใบขอซื้อ/.test(ln)) return;
-      const code = ln.match(/\b\d{6,8}\b/);
-      if (!code) return;
-      if (prDigits && code[0] === prDigits) return;   // กันเลขที่ PR หลุดมาเป็นรายการ
-      const after = ln.slice(ln.indexOf(code[0]) + code[0].length);
-      // คลัง = เลข 2 หลัก 0X ตัวแรกหลังรหัส (เช่น 04)
-      const whm = after.match(/\b(0[1-9])\b/);
+    lines.forEach((ln, idx) => {
+      if (noteIdx >= 0 && idx >= noteIdx) return;       // ไม่เอาบล็อกหมายเหตุมาเป็นรายการ
+      if (/รหัสสินค้า|จำนวนขอ|เลขที่ใบ|อนุมัติ|ภาษี|เลขประจำตัว|ใบขอซื้อ|ผู้จำหน่าย|สถานที่|แขวง|เขต/.test(ln)) return;
+      // รหัส = ตัวเลข 3–8 หลัก อาจมีขีด เช่น 0032010 หรือ 5120-21
+      const code = ln.match(/\b\d{3,8}(?:-\d{1,3})?\b/);
+      const codeStr = code ? code[0] : "";
+      if (prDigits && codeStr === prDigits) return;     // กันเลขที่ PR หลุดมาเป็นรายการ
+      const after = codeStr ? ln.slice(ln.indexOf(codeStr) + codeStr.length) : ln;
+      // จำนวน+หน่วย จากข้อความ "หลังรหัส" — หน่วยต้องไม่ตามด้วยอักษรไทยอื่น
+      // (กัน "แผง" ในคำว่า "แผงคอยล์" และกันเลขในรหัส/วันที่)
+      const qtyU = after.match(new RegExp("(\\d+(?:\\.\\d{1,2})?)\\s*(" + unitRe + ")(?![ก-๙])"));
+      if (!qtyU) return;
+      // คลัง = เลข 0X ตัวแรก "ก่อนคอลัมน์จำนวน" (กันไปจับเลขเดือนจากวันที่ เช่น 10/06/69)
+      const beforeQty = after.split(qtyU[0])[0] || "";
+      const whm = beforeQty.match(/\b(0[1-9])\b/);
       const wh = whm ? ("WH-" + whm[1]) : "WH-01";
-      // จำนวน = ตัวเลขที่ตามด้วยหน่วย (คือคอลัมน์จำนวนขอซื้อ ไม่ใช่คงเหลือ)
-      const qtyU = ln.match(new RegExp("(\\d+(?:\\.\\d+)?)\\s*(" + unitRe + ")"));
-      // รายละเอียด = ข้อความก่อนตัวเลขตัวแรก (ตัดคอลัมน์ตัวเลขทิ้ง)
       let desc = (after.split(/\s+\d/)[0] || "").replace(/[\/\\|]+/g, " ").replace(/\s+/g, " ").trim();
-      items.push({
-        code: code[0], desc,
-        qty: qtyU ? (Number(qtyU[1]) || 1) : 1,
-        unit: qtyU ? qtyU[2] : "ตัว",
-        wh,
-      });
+      items.push({ code: codeStr, desc, qty: Number(qtyU[1]) || 1, unit: qtyU[2], wh });
     });
     if (!items.length) items.push({ code: "", desc: "", qty: 1, unit: "ชิ้น", wh: "WH-01" });
 
     return {
       prCode, date, deptId, deptName: "", requester: "", requesterUnit: "",
-      note: "",
+      note,
       items,
     };
   }
@@ -108,8 +120,18 @@
     const [scanErr, setScanErr] = useState(null);
     const [manual, setManual] = useState(false);
     const fileRef = useRef(null);
+    const PR_DRAFT = "evt_draft_pr";
+    const readDraft = () => { try { return JSON.parse(localStorage.getItem(PR_DRAFT) || "null"); } catch (e) { return null; } };
+    const [draftAvail, setDraftAvail] = useState(() => !!readDraft());
+    function clearDraft() { try { localStorage.removeItem(PR_DRAFT); } catch (e) {} setDraftAvail(false); }
+    function continueDraft() { const d = readDraft(); if (d && d.form) { setForm(d.form); setManual(!!d.manual); setPhase(2); } }
 
-    function resetAll() { setPhase(0); setForm(null); setImgUrl(null); setScanErr(null); setManual(false); }
+    // เก็บร่างฟอร์มตรวจทานอัตโนมัติ (กันหายตอนรีโหลด/มือถือล้างแท็บ)
+    useEffect(() => {
+      try { if (form && phase === 2) localStorage.setItem(PR_DRAFT, JSON.stringify({ form, manual })); } catch (e) {}
+    }, [form, phase, manual]);
+
+    function resetAll() { setPhase(0); setForm(null); setImgUrl(null); setScanErr(null); setManual(false); clearDraft(); }
 
     function startBlank() {
       const yr = new Date().getFullYear() + 543;
@@ -195,6 +217,7 @@
         items: form.items.map((it) => ({ code: it.code, desc: it.desc, qty: Number(it.qty) || 0, received: 0, used: 0, wh: it.wh, unit: it.unit })),
       };
       actions.savePR(pr);
+      clearDraft();
       setSavedId(form.prCode);
       setPhase(3);
     }
@@ -237,6 +260,10 @@
           React.createElement("h1", null, t("openpr_title")),
           React.createElement("p", null, t("openpr_sub")))),
       Steps,
+      (draftAvail && phase === 0) ? React.createElement("div", { className: "card", style: { padding: "12px 16px", margin: "0 0 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: "var(--green-50,#f0f7f2)", border: "1px solid var(--green-200,#cde9d8)" } },
+        React.createElement("span", { style: { flex: 1, font: "500 13px var(--font-th)", color: "var(--strong-green,#003F1D)" } }, "มีร่าง PR ที่กรอกค้างไว้ — กรอกต่อไหม?"),
+        React.createElement(window.Btn, { variant: "primary", size: "sm", onClick: continueDraft }, "กรอกต่อ"),
+        React.createElement(window.Btn, { variant: "ghost", size: "sm", onClick: clearDraft }, "ลบร่าง")) : null,
       (phase === 2 && (reviewLayout === "focus" || manual))
       ? React.createElement("div", { style: { maxWidth: 720, margin: "0 auto" } },
           React.createElement(ReviewForm, {
@@ -357,6 +384,14 @@
         React.createElement("div", { style: { marginBottom: 16 } },
           React.createElement(window.Field, { label: t("dept_detail") },
             React.createElement("div", { className: "dept-detail" }, (D.deptById(form.deptId) || {}).detail || "—"))),
+        React.createElement("div", { style: { marginBottom: 16 } },
+          React.createElement(window.Field, { label: t("note") },
+            React.createElement("textarea", {
+              className: "input", rows: 2, value: form.note || "",
+              placeholder: lang === "en" ? "Notes / details (e.g. plates, model)" : "หมายเหตุ / รายละเอียด เช่น ทะเบียน รุ่นรถ",
+              onChange: (e) => setForm((f) => ({ ...f, note: e.target.value })),
+              style: { width: "100%", resize: "vertical", boxSizing: "border-box", font: "400 14px var(--font-th)" },
+            }))),
         React.createElement("div", { style: { font: "600 11px var(--font-en)", letterSpacing: ".07em", textTransform: "uppercase", color: "var(--fg-muted)", marginBottom: 10 } }, t("item")),
         React.createElement("datalist", { id: "evt-units" },
           ["ชิ้น", "อัน", "แพค", "ชุด", "กล่อง", "ตัว", "เส้น", "ม้วน", "คู่", "ลิตร", "เมตร", "ถุง"].map((u) =>

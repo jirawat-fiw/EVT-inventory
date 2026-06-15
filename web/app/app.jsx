@@ -317,11 +317,8 @@
                  background: "var(--evt-green,#00652E)", color: "#fff", font: "600 15px var(--font-th,sans-serif)",
                  opacity: busy ? 0.6 : 1 },
       }, busy ? "กำลังดำเนินการ…" : (mode === "in" ? "เข้าสู่ระบบ" : "สมัครสมาชิก")),
-      React.createElement("div", { style: { textAlign: "center", marginTop: 14, fontSize: 13 } },
-        React.createElement("button", {
-          type: "button", onClick: () => { setMode(mode === "in" ? "up" : "in"); setMsg(null); },
-          style: { border: 0, background: "transparent", color: "var(--evt-green,#00652E)", cursor: "pointer", font: "500 13px var(--font-th,sans-serif)" },
-        }, mode === "in" ? "ยังไม่มีบัญชี? สมัครสมาชิก" : "มีบัญชีแล้ว? เข้าสู่ระบบ"))));
+      React.createElement("div", { style: { textAlign: "center", marginTop: 14, fontSize: 12, color: "var(--neutral-600,#888)" } },
+        "ต้องการบัญชีใหม่? ติดต่อผู้ดูแลระบบ")));
   }
 
   // ---------- bootstrap ----------

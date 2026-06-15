@@ -202,7 +202,8 @@
 .ls-md .label .lt small { font-size: 7pt; }
 
 @media print {
-  @page { size: A4; margin: 0; }
+  @page { size: A4; margin: 14mm 12mm; }   /* เว้นขอบ กันเนื้อหาล้นออกนอกพื้นที่พิมพ์ */
+  @page evtlabel { size: A4; margin: 0; }  /* ป้าย QR ใช้ขอบ 0 แยกต่างหาก */
   body { background: #fff; }
   .sb, .topbar, .no-print, .bottomnav { display: none !important; }
   .app { display: block; height: auto; overflow: visible; }
@@ -210,9 +211,15 @@
   .page { padding: 0 !important; max-width: none; }
   .print-only { display: block !important; }
   .doc-sheet { box-shadow: none; width: 100%; padding: 0; border-radius: 0; }
+  /* รายงานยาว ๆ ให้ไหลข้ามหน้าได้สวย */
+  .doc-tbl { break-inside: auto; }
+  .doc-tbl thead { display: table-header-group; }   /* หัวตารางซ้ำทุกหน้า */
+  .doc-tbl tfoot { display: table-footer-group; }
+  .doc-tbl tr { break-inside: avoid; }              /* ไม่ตัดแถวกลางคัน */
+  .doc-sign { break-inside: avoid; }                /* ช่องลายเซ็นไม่แตกหน้า */
   body.print-labels .app { display: none !important; }
   body.print-labels .label-overlay { position: static; inset: auto; overflow: visible; background: #fff; padding: 0; }
-  .label-sheet { box-shadow: none !important; margin: 0 !important; break-after: page; }
+  .label-sheet { box-shadow: none !important; margin: 0 !important; break-after: page; page: evtlabel; }
   .label-sheet:last-child { break-after: auto; }
 }
 
