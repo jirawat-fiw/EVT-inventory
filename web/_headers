@@ -1,0 +1,3 @@
+# Cloudflare Pages — ให้เบราว์เซอร์ตรวจเวอร์ชันใหม่เสมอ (กันโค้ดค้าง cache หลัง deploy)
+/*
+  Cache-Control: public, max-age=0, must-revalidate
