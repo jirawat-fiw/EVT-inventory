@@ -282,3 +282,113 @@ button { font-family: inherit; }
   .modal { max-height: 86vh; }
   .toast { bottom: calc(78px + env(safe-area-inset-bottom)); width: max-content; max-width: calc(100vw - 28px); }
 }
+
+/* ============================================================
+   Revamp v2 — usability + premium polish (appended layer)
+   Safe to remove this whole block to revert to the prior look.
+   ============================================================ */
+
+/* ---- Keyboard focus: visible only for keyboard users ---- */
+:where(button, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--evt-green);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+.sb-link:focus-visible, .bn-item:focus-visible { outline-color: var(--new-day-green); outline-offset: -2px; }
+.tb-seg button:focus-visible { outline-offset: -2px; }
+.btn:focus-visible { outline-offset: 3px; }
+/* inputs already show a green ring on :focus — don't double up */
+.input:focus-visible, select.input:focus-visible, textarea.input:focus-visible { outline: none; }
+
+/* ---- Respect reduced-motion preference ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Sidebar: depth + active accent bar ---- */
+.sb { background: linear-gradient(185deg, var(--strong-green) 0%, #00310f 100%); }
+.sb-link { position: relative; }
+.sb-link.is-active::before {
+  content: ""; position: absolute; left: -14px; top: 7px; bottom: 7px; width: 4px;
+  background: var(--new-day-green); border-radius: 0 4px 4px 0;
+}
+.sb-link svg { transition: transform var(--dur-fast) var(--ease-out); }
+.sb-link:hover svg { transform: translateX(1px); }
+
+/* ---- KPI cards: hover lift + richer tiles + top accent ---- */
+.kpi { transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out); }
+.kpi:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.kpi::after {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  opacity: 0; transition: opacity var(--dur-base) var(--ease-out);
+}
+.kpi:hover::after { opacity: .9; }
+.kpi:not(.kpi-accent) .ic {
+  background: linear-gradient(135deg, var(--green-50), var(--green-100));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+}
+.kpi.kpi-accent { background: linear-gradient(150deg, var(--evt-green) 0%, var(--strong-green) 100%); }
+.kpi.kpi-accent::after { background: linear-gradient(90deg, var(--new-day-green), transparent); }
+/* clickable KPI: cursor + a chevron that slides in on hover/focus */
+.kpi-click { cursor: pointer; }
+.kpi-go {
+  position: absolute; top: 16px; right: 16px; color: var(--fg-subtle);
+  opacity: 0; transform: translateX(-4px);
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+.kpi-accent .kpi-go { color: rgba(255,255,255,.8); }
+.kpi-click:hover .kpi-go, .kpi-click:focus-visible .kpi-go { opacity: 1; transform: translateX(0); }
+.kpi-click:focus-visible { outline: 2px solid var(--evt-green); outline-offset: 2px; }
+.kpi-accent.kpi-click:focus-visible { outline-color: var(--new-day-green); }
+
+/* ---- Dashboard hero: greeting + date chip ---- */
+.dash-hello { font: 600 13px var(--font-th); color: var(--evt-green); margin-bottom: 6px; }
+.date-chip {
+  display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r-pill);
+  padding: 8px 14px; font: 600 13px var(--font-th); color: var(--fg-muted);
+}
+.date-chip svg { color: var(--evt-green); }
+
+/* ---- Cards: smooth shadow transition ---- */
+.card { transition: box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out); }
+
+/* ---- Buttons: subtle depth + premium hover glow ---- */
+.btn-primary { box-shadow: 0 1px 2px rgba(0,38,18,.2), inset 0 1px 0 rgba(255,255,255,.12); }
+.btn-primary:hover:not(:disabled) { box-shadow: 0 5px 16px -4px rgba(0,101,46,.45); }
+.btn-accent:hover:not(:disabled) { box-shadow: 0 5px 16px -4px rgba(0,203,92,.5); }
+.btn-gold:hover:not(:disabled)   { box-shadow: 0 5px 16px -4px rgba(193,183,66,.5); }
+
+/* ---- Topbar: cleaner layered depth ---- */
+.topbar { box-shadow: 0 1px 0 var(--border), 0 8px 18px -14px rgba(0,38,18,.22); }
+
+/* ---- Empty state ---- */
+.empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 40px 24px; gap: 4px;
+}
+.empty .ei {
+  width: 56px; height: 56px; border-radius: 16px; margin-bottom: 10px;
+  background: linear-gradient(135deg, var(--green-50), var(--green-100)); color: var(--green-400);
+  display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+}
+.empty h4 { margin: 0; font: 600 15px var(--font-th); color: var(--fg-muted); }
+.empty p  { margin: 0; font: 400 13px var(--font-th); color: var(--fg-subtle); max-width: 330px; line-height: 1.55; }
+.empty .btn, .empty .linkbtn { margin-top: 12px; }
+
+/* ---- Skeleton loaders (pause under reduced-motion via the rule above) ---- */
+.skel { position: relative; overflow: hidden; background: var(--neutral-100); border-radius: var(--r-sm); }
+.skel::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent);
+  animation: shimmer 1.4s var(--ease-in-out) infinite;
+}
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+.skel-line { height: 12px; margin: 8px 0; }
+.skel-row  { height: 46px; margin: 8px 0; border-radius: var(--r-md); }

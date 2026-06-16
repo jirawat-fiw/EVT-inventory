@@ -15,16 +15,19 @@
     const tracking = data.prs.filter((p) => p.status === "ordered" || p.status === "partial");
 
     const kpis = React.createElement("div", { className: "grid g-4" },
-      React.createElement(window.KPI, { icon: React.createElement(window.IcFile, { size: 20 }), val: openPRs.length, label: t("kpi_open_pr"), delta: "+2", deltaDir: "up" }),
-      React.createElement(window.KPI, { icon: React.createElement(window.IcReceive, { size: 20 }), val: D.fmtNum(awaiting) + " " + t("pieces"), label: t("kpi_await") }),
-      React.createElement(window.KPI, { icon: React.createElement(window.IcAlert, { size: 20 }), val: low.length, label: t("kpi_low"), delta: low.length ? "ต้องสั่ง" : "", deltaDir: "dn" }),
-      React.createElement(window.KPI, { icon: React.createElement(window.IcBox, { size: 20 }), val: D.fmtNum(issuedCount) + " " + t("pieces"), label: t("kpi_issued"), accent: true }));
+      React.createElement(window.KPI, { icon: React.createElement(window.IcFile, { size: 20 }), val: openPRs.length, label: t("kpi_open_pr"), delta: "+2", deltaDir: "up", onClick: () => go("registry") }),
+      React.createElement(window.KPI, { icon: React.createElement(window.IcReceive, { size: 20 }), val: D.fmtNum(awaiting) + " " + t("pieces"), label: t("kpi_await"), onClick: () => go("receive") }),
+      React.createElement(window.KPI, { icon: React.createElement(window.IcAlert, { size: 20 }), val: low.length, label: t("kpi_low"), delta: low.length ? (lang === "en" ? "reorder" : "ต้องสั่ง") : "", deltaDir: "dn", onClick: () => go("stock") }),
+      React.createElement(window.KPI, { icon: React.createElement(window.IcBox, { size: 20 }), val: D.fmtNum(issuedCount) + " " + t("pieces"), label: t("kpi_issued"), accent: true, onClick: () => go("withdraw") }));
 
     const recentPR = React.createElement(window.Card, null,
       React.createElement(window.CardHead, { title: t("pr_recent"), right: React.createElement("button", { className: "linkbtn", onClick: () => go("registry") }, t("viewall"), React.createElement(window.IcChevR, { size: 14 })) }),
       React.createElement("table", { className: "tbl" },
         React.createElement("tbody", null,
-          data.prs.slice(0, 5).map((pr) => {
+          data.prs.length === 0
+          ? React.createElement("tr", null, React.createElement("td", { colSpan: 4, style: { padding: 0 } },
+              React.createElement(window.EmptyState, { icon: React.createElement(window.IcFile, { size: 24 }), title: lang === "en" ? "No PRs yet" : "ยังไม่มี PR" })))
+          : data.prs.slice(0, 5).map((pr) => {
             const tot = window.prTotals(pr);
             return React.createElement("tr", { key: pr.id, className: "clickable", onClick: () => setDetail(pr.id) },
               React.createElement("td", { className: "code" }, pr.id),
@@ -44,7 +47,11 @@
     const lowStock = React.createElement(window.Card, null,
       React.createElement(window.CardHead, { title: t("low_stock"), sub: low.length + " " + t("item"), right: React.createElement("button", { className: "linkbtn", onClick: () => go("stock") }, t("viewall"), React.createElement(window.IcChevR, { size: 14 })) }),
       React.createElement("div", { className: "card-pad", style: { display: "flex", flexDirection: "column", gap: 12 } },
-        low.length === 0 ? React.createElement("div", { style: { color: "var(--fg-subtle)", font: "400 14px var(--font-th)" } }, "อะไหล่ทุกรายการอยู่เหนือจุดสั่งซื้อ")
+        low.length === 0 ? React.createElement(window.EmptyState, {
+            icon: React.createElement(window.IcCheck, { size: 26 }),
+            title: lang === "en" ? "All stocked up" : "สต็อกครบทุกรายการ",
+            hint: lang === "en" ? "Every part is above its reorder point." : "อะไหล่ทุกรายการอยู่เหนือจุดสั่งซื้อ",
+          })
         : low.map((p) => React.createElement("div", { key: p.code, style: { display: "flex", alignItems: "center", gap: 12 } },
             React.createElement("div", { style: { flex: 1 } },
               React.createElement("div", { style: { font: "500 14px var(--font-th)" } }, lang === "en" ? p.en : p.th),
@@ -57,7 +64,10 @@
       React.createElement(window.CardHead, { title: t("recent_issue"), right: React.createElement("button", { className: "linkbtn", onClick: () => go("withdraw") }, t("nav_withdraw"), React.createElement(window.IcChevR, { size: 14 })) }),
       React.createElement("table", { className: "tbl" },
         React.createElement("tbody", null,
-          data.issues.slice(0, 5).map((w) => {
+          data.issues.length === 0
+          ? React.createElement("tr", null, React.createElement("td", { colSpan: 3, style: { padding: 0 } },
+              React.createElement(window.EmptyState, { icon: React.createElement(window.IcWithdraw, { size: 24 }), title: lang === "en" ? "No withdrawals yet" : "ยังไม่มีการเบิก" })))
+          : data.issues.slice(0, 5).map((w) => {
             const p = D.partByCode(w.code);
             return React.createElement("tr", { key: w.id },
               React.createElement("td", null,
@@ -96,13 +106,24 @@
                 React.createElement("span", { style: { font: "600 12px var(--font-en)", color: dirColor, width: 42, textAlign: "right" } }, arrow + " " + (diff > 0 ? "+" : "") + diff));
             })));
 
+    const now = new Date();
+    const hr = now.getHours();
+    const greet = lang === "en"
+      ? (hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening")
+      : (hr < 12 ? "สวัสดีตอนเช้า" : hr < 17 ? "สวัสดีตอนบ่าย" : "สวัสดีตอนค่ำ");
+    const hello = greet + (data.currentUser ? (lang === "en" ? ", " : ", ") + data.currentUser : "");
+    const todayStr = fmtDate(now.toISOString().slice(0, 10), lang);
+
     return React.createElement("div", { className: "page fadein" },
       React.createElement("div", { className: "page-head" },
         React.createElement("div", null,
-          React.createElement("div", { className: "eyebrow" }, "DASHBOARD"),
+          React.createElement("div", { className: "dash-hello" }, hello),
           React.createElement("h1", null, t("dash_title")),
           React.createElement("p", null, t("dash_sub"))),
-        React.createElement(window.Btn, { variant: "primary", icon: React.createElement(window.IcScan, { size: 16 }), onClick: () => go("openpr") }, t("nav_openpr"))),
+        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" } },
+          React.createElement("span", { className: "date-chip" },
+            React.createElement(window.IcClock, { size: 15 }), todayStr),
+          React.createElement(window.Btn, { variant: "primary", icon: React.createElement(window.IcScan, { size: 16 }), onClick: () => go("openpr") }, t("nav_openpr")))),
       kpis,
       dashLayout === "tracker"
         ? React.createElement("div", { className: "grid resp-grid", style: { gridTemplateColumns: "1.4fr 1fr", marginTop: 18 } }, tracker, React.createElement("div", { className: "grid", style: { gridTemplateRows: "auto auto", gap: 18 } }, lowStock, recentIssue))
@@ -287,7 +308,17 @@
             [t("code"), t("detail"), t("warehouse"), t("stk_onhand"), t("stk_min"), t("status")].map((h, i) =>
               React.createElement("th", { key: i, className: i >= 3 && i <= 4 ? "num" : "" }, h)))),
           React.createElement("tbody", null,
-            rows.map((p) => {
+            rows.length === 0
+              ? React.createElement("tr", null, React.createElement("td", { colSpan: 6, style: { padding: 0 } },
+                  React.createElement(window.EmptyState, {
+                    icon: React.createElement(window.IcSearch, { size: 26 }),
+                    title: lang === "en" ? "No parts found" : "ไม่พบอะไหล่",
+                    hint: lang === "en" ? "Try a different keyword, category, or warehouse." : "ลองคำค้น หมวด หรือคลังอื่น",
+                    action: (qq || cat !== "ทั้งหมด" || wh !== "")
+                      ? React.createElement("button", { className: "linkbtn", onClick: () => { setQ(""); setCat("ทั้งหมด"); setWh(""); } }, lang === "en" ? "Clear filters" : "ล้างตัวกรอง")
+                      : null,
+                  })))
+              : rows.map((p) => {
               const lowS = p.stock < p.min;
               const wh = D.whById(p.wh);
               return React.createElement("tr", { key: p.code },

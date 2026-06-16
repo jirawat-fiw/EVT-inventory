@@ -241,8 +241,14 @@
 
     // ---- phase 3: done ----
     if (phase === 3) {
+      // pr can be undefined if a save failed and refresh() reseeded db.prs without it.
+      // Never call prTotals(undefined) (it reads pr.items and throws) — fall back to the
+      // still-present form values and show a friendly "couldn't reload" note instead.
       const pr = actions.getPR(savedId);
-      const tot = window.prTotals(pr);
+      const reloaded = !!pr;
+      const tot = reloaded
+        ? window.prTotals(pr)
+        : { lines: (form.items || []).length, ordered: (form.items || []).reduce((s, it) => s + (Number(it.qty) || 0), 0) };
       return React.createElement("div", { className: "page fadein" },
         Steps,
         React.createElement(window.Card, { style: { maxWidth: 560, margin: "0 auto" } },
@@ -251,6 +257,8 @@
             React.createElement("h2", null, t("pr_saved")),
             React.createElement("p", null, t("pr_saved_sub")),
             React.createElement("div", { className: "mono", style: { font: "800 22px var(--font-en)", color: "var(--evt-green)", margin: "8px 0 18px" } }, savedId),
+            !reloaded ? React.createElement("p", { style: { font: "500 12.5px var(--font-th)", color: "var(--fg-subtle)", margin: "-8px 0 16px" } },
+              lang === "en" ? "Saved, but details couldn't be reloaded right now." : "บันทึกแล้ว แต่ยังโหลดรายละเอียดไม่ได้ในขณะนี้") : null,
             React.createElement("div", { style: { display: "flex", gap: 24, justifyContent: "center", marginBottom: 22 } },
               statBit(tot.lines, t("item")), statBit(tot.ordered + " " + t("pieces"), t("qty"))),
             React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center" } },
@@ -459,7 +467,21 @@
             [t("code"), t("date"), t("dept"), t("requester"), t("item"), t("ordered_vs"), t("status"), ""].map((h, i) =>
               React.createElement("th", { key: i, className: i === 4 || i === 5 ? "num" : "" }, h)))),
           React.createElement("tbody", null,
-            rows.map((pr) => {
+            rows.length === 0
+              ? React.createElement("tr", null, React.createElement("td", { colSpan: 8, style: { padding: 0 } },
+                  React.createElement(window.EmptyState, {
+                    icon: React.createElement(window.IcFile, { size: 26 }),
+                    title: filter === "all"
+                      ? (lang === "en" ? "No purchase requests yet" : "ยังไม่มีใบขอซื้อ (PR)")
+                      : (lang === "en" ? "No PRs in this status" : "ไม่มี PR ในสถานะนี้"),
+                    hint: filter === "all"
+                      ? (lang === "en" ? "Open your first PR by scanning a slip." : "เปิด PR ใบแรกได้โดยสแกนใบ PR")
+                      : (lang === "en" ? "Try a different status filter." : "ลองเลือกสถานะอื่น"),
+                    action: filter === "all"
+                      ? React.createElement(window.Btn, { variant: "soft", size: "sm", icon: React.createElement(window.IcScan, { size: 15 }), onClick: () => go("openpr") }, t("nav_openpr"))
+                      : React.createElement("button", { className: "linkbtn", onClick: () => setFilter("all") }, lang === "en" ? "Show all" : "แสดงทั้งหมด"),
+                  })))
+              : rows.map((pr) => {
               const tot = window.prTotals(pr);
               const dep = D.deptById(pr.dept);
               return React.createElement("tr", { key: pr.id, className: "clickable", onClick: () => setDetail(pr.id) },

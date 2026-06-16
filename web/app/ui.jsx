@@ -38,14 +38,22 @@
       right || null);
   }
 
-  function KPI({ icon, val, label, delta, deltaDir, accent }) {
-    return React.createElement("div", { className: "kpi" + (accent ? " kpi-accent" : "") },
+  function KPI({ icon, val, label, delta, deltaDir, accent, onClick }) {
+    const clickable = typeof onClick === "function";
+    return React.createElement("div", {
+      className: "kpi" + (accent ? " kpi-accent" : "") + (clickable ? " kpi-click" : ""),
+      onClick: clickable ? onClick : undefined,
+      role: clickable ? "button" : undefined,
+      tabIndex: clickable ? 0 : undefined,
+      onKeyDown: clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined,
+    },
       React.createElement("div", { className: "ic" }, icon),
       React.createElement("div", { className: "val mono" }, val),
       React.createElement("div", { className: "lbl" }, label),
       delta ? React.createElement("div", { className: "delta " + (deltaDir || "up") },
         deltaDir === "dn" ? React.createElement(window.IcTrendDn, { size: 14 }) : React.createElement(window.IcTrendUp, { size: 14 }),
-        delta) : null);
+        delta) : null,
+      clickable ? React.createElement("span", { className: "kpi-go" }, React.createElement(window.IcChevR, { size: 16 })) : null);
   }
 
   function Field({ label, children }) {
@@ -125,6 +133,23 @@
       }, lang === "en" ? w.en : w.th)));
   }
 
+  // ---- empty state (no data) ----
+  function EmptyState({ icon, title, hint, action }) {
+    return React.createElement("div", { className: "empty" },
+      icon ? React.createElement("div", { className: "ei" }, icon) : null,
+      title ? React.createElement("h4", null, title) : null,
+      hint ? React.createElement("p", null, hint) : null,
+      action || null);
+  }
+
+  // ---- skeleton loaders ----
+  function Skeleton({ kind = "line", count = 1, style }) {
+    const cls = "skel skel-" + kind;
+    return React.createElement(React.Fragment, null,
+      Array.from({ length: count }, (_, i) =>
+        React.createElement("div", { key: i, className: cls, style })));
+  }
+
   // PR aggregate helpers
   function prTotals(pr) {
     const D = window.EVTDATA;
@@ -137,5 +162,5 @@
     return { ordered, received, used, value, lines: pr.items.length };
   }
 
-  Object.assign(window, { StatusBadge, Badge, Btn, Card, CardHead, KPI, Field, Meter, Modal, Toast, SearchSelect, WarehouseFilter, whWithData, prTotals });
+  Object.assign(window, { StatusBadge, Badge, Btn, Card, CardHead, KPI, Field, Meter, Modal, Toast, SearchSelect, WarehouseFilter, whWithData, prTotals, EmptyState, Skeleton });
 })();
