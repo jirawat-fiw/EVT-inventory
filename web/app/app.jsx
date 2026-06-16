@@ -120,6 +120,10 @@
         persist(() => D.api.savePR(pr));
       },
       getPR(id) { return db.prs.find((p) => p.id === id); },
+      async updatePR(pr) {
+        await D.api.updatePR(pr);
+        await refresh();
+      },
       async adminSave(entity, obj, isNew) {
         const fn = { part: "savePart", vehicle: "saveVehicle", dept: "saveDept", warehouse: "saveWarehouse" }[entity];
         await D.api[fn](obj, isNew);
@@ -251,7 +255,7 @@
           React.createElement("span", null, tr(it.key)),
           it.pip && pipVal(it.pip) > 0 ? React.createElement("span", { className: "pip" }, pipVal(it.pip)) : null))),
 
-      detail ? React.createElement(window.PRDetail, { t: tr, lang, data: db, prId: detail, onClose: () => setDetail(null), go }) : null,
+      detail ? React.createElement(window.PRDetail, { t: tr, lang, data: db, prId: detail, onClose: () => setDetail(null), go, actions, isAdmin, setToast }) : null,
       toast ? React.createElement(window.Toast, { msg: toast, onDone: () => setToast(null) }) : null,
 
       // tweaks

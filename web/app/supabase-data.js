@@ -144,6 +144,70 @@
       })))).error;
       if (e3) throw e3;
     },
+
+    // ---- แก้ไขใบ PR ที่มีอยู่ (แอดมินเท่านั้น — เขียนตารางตรงผ่าน RLS) ----
+    // คงยอด "รับแล้ว/เบิกแล้ว" ไว้เสมอ และห้ามลด qty ต่ำกว่ายอดรับ หรือลบบรรทัดที่รับ/เบิกไปแล้ว
+    async updatePR(pr) {
+      // 1) หัวเอกสาร (ไม่แก้ id / สถานะ)
+      const e1 = (await sb.from("prs").update({
+        date: pr.date, dept_id: pr.dept || null, requester: pr.requester || "",
+        requester_unit: pr.requesterUnit || "", note: pr.note || null,
+      }).eq("id", pr.id)).error;
+      if (e1) throw e1;
+
+      // 2) รายการเดิม (ใช้ยอด received/used จาก DB เป็นหลัก)
+      const { data: existing, error: exErr } = await sb.from("pr_items")
+        .select("part_code, received, used").eq("pr_id", pr.id);
+      if (exErr) throw exErr;
+      const exMap = {}; (existing || []).forEach((r) => { exMap[r.part_code] = r; });
+
+      // รายการใหม่ (กันรหัสซ้ำ)
+      const seen = new Set();
+      const items = (pr.items || [])
+        .map((it) => ({ ...it, code: (it.code || "").trim() }))
+        .filter((it) => it.code && !seen.has(it.code) && seen.add(it.code));
+      const keep = new Set(items.map((it) => it.code));
+
+      // 3) ลบบรรทัดที่ถูกเอาออก — ได้เฉพาะที่ยังไม่รับ/ไม่เบิก
+      for (const r of (existing || [])) {
+        if (keep.has(r.part_code)) continue;
+        if ((r.received || 0) > 0 || (r.used || 0) > 0)
+          throw new Error("ลบรายการที่รับ/เบิกไปแล้วไม่ได้: " + r.part_code);
+        const e = (await sb.from("pr_items").delete().eq("pr_id", pr.id).eq("part_code", r.part_code)).error;
+        if (e) throw e;
+      }
+
+      // 4) สร้างอะไหล่ stub ให้รหัสใหม่ที่ยังไม่มีในคลัง
+      const fresh = items.filter((it) => !exMap[it.code]);
+      if (fresh.length) {
+        const { data: have } = await sb.from("parts").select("code").in("code", fresh.map((it) => it.code));
+        const haveSet = new Set((have || []).map((p) => p.code));
+        const stubs = fresh.filter((it) => !haveSet.has(it.code)).map((it) => ({
+          code: it.code, name_th: (it.desc || "").trim() || it.code, name_en: null,
+          unit: it.unit || "ชิ้น", unit_en: null, warehouse_id: it.wh || null,
+          stock: 0, min: 0, price: 0, category: "จาก PR (แก้ไข)",
+        }));
+        if (stubs.length) { const e = (await sb.from("parts").insert(stubs)).error; if (e) throw e; }
+      }
+
+      // 5) อัปเดต/เพิ่มแต่ละบรรทัด (qty ไม่ต่ำกว่ายอดรับ)
+      for (const it of items) {
+        const ex = exMap[it.code];
+        const qty = Math.max(Number(it.qty) || 0, ex ? (ex.received || 0) : 0);
+        if (ex) {
+          const e = (await sb.from("pr_items").update({
+            qty, warehouse_id: it.wh || null, unit: it.unit || null,
+          }).eq("pr_id", pr.id).eq("part_code", it.code)).error;
+          if (e) throw e;
+        } else {
+          const e = (await sb.from("pr_items").insert({
+            pr_id: pr.id, part_code: it.code, qty, received: 0, used: 0,
+            warehouse_id: it.wh || null, unit: it.unit || null,
+          })).error;
+          if (e) throw e;
+        }
+      }
+    },
     async receive(prId, recv) {
       const lines = Object.entries(recv)
         .filter(([, q]) => Number(q) > 0)

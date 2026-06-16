@@ -254,11 +254,24 @@
   // ============================================================
   //  PR DETAIL MODAL
   // ============================================================
-  function PRDetail({ t, lang, data, prId, onClose, go }) {
+  function PRDetail({ t, lang, data, prId, onClose, go, actions, isAdmin, setToast }) {
     const pr = data.prs.find((p) => p.id === prId);
+    const [edit, setEdit] = useState(false);
     if (!pr) return null;
     const dep = D.deptById(pr.dept);
     const tot = window.prTotals(pr);
+
+    if (edit && isAdmin) {
+      return React.createElement(PREditForm, {
+        t, lang, pr, onCancel: () => setEdit(false),
+        onSave: async (draft) => {
+          await actions.updatePR(draft);
+          setToast && setToast(lang === "en" ? "PR updated" : "บันทึกการแก้ไขแล้ว");
+          onClose();
+        },
+      });
+    }
+
     return React.createElement(window.Modal, { onClose, max: 680 },
       React.createElement("div", { className: "card-head", style: { position: "sticky", top: 0, background: "#fff", zIndex: 2 } },
         React.createElement("div", null,
@@ -286,9 +299,119 @@
                     React.createElement("div", { style: { width: 44 } }, React.createElement(window.Meter, { value: it.received, max: it.qty })))),
                 React.createElement("td", { className: "num mono", style: { color: it.used > 0 ? "var(--strong-green)" : "var(--fg-subtle)" } }, it.used));
             }))),
-        React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 18 } },
+        React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", marginTop: 18 } },
+          isAdmin ? React.createElement(window.Btn, { variant: "ghost", icon: React.createElement(window.IcEdit, { size: 16 }), onClick: () => setEdit(true) }, lang === "en" ? "Edit" : "แก้ไข") : null,
+          React.createElement("div", { style: { flex: 1 } }),
           (pr.status === "ordered" || pr.status === "partial") ? React.createElement(window.Btn, { variant: "primary", icon: React.createElement(window.IcReceive, { size: 16 }), onClick: () => { onClose(); go("receive"); } }, t("nav_receive")) : null,
           React.createElement(window.Btn, { variant: "ghost", onClick: onClose }, t("close")))));
+  }
+
+  // ---- แก้ไขใบ PR (แอดมิน) — หัวเอกสาร + รายการ (คงยอดรับ/เบิก) ----
+  function PREditForm({ t, lang, pr, onCancel, onSave }) {
+    const nameOf = (code) => { const p = D.partByCode(code); return p ? (lang === "en" ? p.en : p.th) : code; };
+    const [f, setF] = useState(() => ({
+      date: pr.date, dept: pr.dept, requester: pr.requester || "", requesterUnit: pr.requesterUnit || "", note: pr.note || "",
+      items: pr.items.map((it) => ({ code: it.code, desc: nameOf(it.code), qty: it.qty, received: it.received || 0, used: it.used || 0, wh: it.wh, unit: it.unit || "" })),
+    }));
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState(null);
+    const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+    const setItem = (i, k, v) => setF((s) => { const items = s.items.slice(); items[i] = { ...items[i], [k]: v }; return { ...s, items }; });
+    const removeItem = (i) => setF((s) => ({ ...s, items: s.items.filter((_, x) => x !== i) }));
+    const addItem = (code) => setF((s) => {
+      if (!code || s.items.some((it) => it.code === code)) return s;
+      const p = D.partByCode(code) || {};
+      return { ...s, items: [...s.items, { code, desc: nameOf(code), qty: 1, received: 0, used: 0, wh: p.wh || "WH-01", unit: p.unit || "ชิ้น" }] };
+    });
+    // เพิ่มบรรทัดเปล่า — กรอกรหัสใหม่เองได้ (เหมือนตอนเปิด PR) ระบบจะสร้างอะไหล่ให้อัตโนมัติตอนบันทึก
+    const addBlank = () => setF((s) => ({ ...s, items: [...s.items, { code: "", desc: "", qty: 1, received: 0, used: 0, wh: "WH-01", unit: "ชิ้น", isNew: true }] }));
+
+    const whOpts = (D.warehouses || []).map((w) => ({ value: w.id, label: w.no || w.id, sub: lang === "en" ? w.en : w.th }));
+    const partOpts = (D.parts || []).map((p) => ({ value: p.code, label: p.code, sub: lang === "en" ? p.en : p.th, search: (p.th || "") + " " + (p.en || "") }));
+
+    async function submit() {
+      if (!f.requester.trim()) { setErr(lang === "en" ? "Requester is required" : "กรุณากรอกผู้ขอเบิก"); return; }
+      if (!f.items.length) { setErr(lang === "en" ? "Add at least one item" : "ต้องมีอย่างน้อย 1 รายการ"); return; }
+      setErr(null); setBusy(true);
+      try {
+        await onSave({
+          id: pr.id, date: f.date, dept: f.dept, requester: f.requester.trim(),
+          requesterUnit: f.requesterUnit.trim(), note: f.note.trim(),
+          items: f.items.map((it) => ({ code: it.code, desc: it.desc, qty: Number(it.qty) || 0, wh: it.wh, unit: it.unit })),
+        });
+      } catch (e) { setErr((e && e.message) || String(e)); setBusy(false); }
+    }
+
+    const fieldLbl = { font: "600 11px var(--font-en)", letterSpacing: ".06em", textTransform: "uppercase", color: "var(--fg-muted)", marginBottom: 5, display: "block" };
+    const cols = "1fr 62px 78px 96px 30px"; // อะไหล่ · จำนวน · หน่วย · คลัง · ลบ
+    const colHead = { font: "600 10px var(--font-en)", letterSpacing: ".04em", textTransform: "uppercase", color: "var(--fg-subtle)", textAlign: "center" };
+
+    return React.createElement(window.Modal, { onClose: onCancel, max: 720 },
+      React.createElement("div", { className: "card-head", style: { position: "sticky", top: 0, background: "#fff", zIndex: 2 } },
+        React.createElement("div", null,
+          React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: 10 } },
+            (lang === "en" ? "Edit PR " : "แก้ไข PR "), React.createElement("span", { className: "mono", style: { color: "var(--evt-green)" } }, pr.id)),
+          React.createElement("div", { className: "sub" }, lang === "en" ? "Received quantities stay locked" : "ยอดที่รับ/เบิกไปแล้วจะถูกล็อกไว้")),
+        React.createElement("button", { className: "linkbtn", onClick: onCancel }, React.createElement(window.IcX, { size: 18 }))),
+      React.createElement("div", { className: "card-pad" },
+        // ---- header fields ----
+        React.createElement("div", { className: "grid g-2", style: { gap: 12, marginBottom: 12 } },
+          React.createElement("div", null, React.createElement("label", { style: fieldLbl }, t("date")),
+            React.createElement("input", { type: "date", className: "input", value: f.date || "", onChange: (e) => set("date", e.target.value) })),
+          React.createElement("div", null, React.createElement("label", { style: fieldLbl }, t("dept")),
+            React.createElement("select", { className: "input", value: f.dept || "", onChange: (e) => set("dept", e.target.value) },
+              (D.departments || []).map((d) => React.createElement("option", { key: d.id, value: d.id }, d.id + " · " + d.th))))),
+        React.createElement("div", { style: { marginBottom: 12 } },
+          React.createElement("label", { style: fieldLbl }, t("requester")),
+          React.createElement("input", { className: "input", value: f.requester, onChange: (e) => set("requester", e.target.value) })),
+        React.createElement("div", { style: { marginBottom: 18 } }, React.createElement("label", { style: fieldLbl }, t("note")),
+          React.createElement("textarea", { className: "input", rows: 2, value: f.note, onChange: (e) => set("note", e.target.value) })),
+
+        // ---- items ----
+        React.createElement("label", { style: fieldLbl }, lang === "en" ? "Items" : "รายการอะไหล่"),
+        // หัวคอลัมน์ให้รู้ว่าช่องไหนคืออะไร
+        React.createElement("div", { style: { display: "grid", gridTemplateColumns: cols, gap: 8, padding: "0 10px 6px", alignItems: "end" } },
+          React.createElement("span", { style: { font: "600 10px var(--font-en)", letterSpacing: ".04em", textTransform: "uppercase", color: "var(--fg-subtle)" } }, lang === "en" ? "Item" : "อะไหล่"),
+          React.createElement("span", { style: colHead }, t("qty")),
+          React.createElement("span", { style: colHead }, lang === "en" ? "Unit" : "หน่วย"),
+          React.createElement("span", { style: colHead }, t("warehouse")),
+          React.createElement("span", null)),
+        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 } },
+          f.items.map((it, i) => {
+            const locked = (it.received || 0) > 0 || (it.used || 0) > 0;
+            const nameCell = it.isNew
+              ? React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4, minWidth: 0 } },
+                  React.createElement("input", { className: "input mono", value: it.code, placeholder: lang === "en" ? "New code" : "รหัสใหม่", style: { padding: "6px 8px" }, onChange: (e) => setItem(i, "code", e.target.value) }),
+                  React.createElement("input", { className: "input", value: it.desc, placeholder: lang === "en" ? "Description" : "รายละเอียด", style: { padding: "6px 8px" }, onChange: (e) => setItem(i, "desc", e.target.value) }))
+              : React.createElement("div", { style: { minWidth: 0 } },
+                  React.createElement("div", { style: { font: "500 13px var(--font-th)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, it.desc),
+                  React.createElement("div", { className: "mono", style: { font: "600 11px var(--font-en)", color: "var(--evt-green)" } }, it.code + (locked ? (lang === "en" ? " · received " : " · รับแล้ว ") + it.received : "")));
+            return React.createElement("div", { key: i, style: { display: "grid", gridTemplateColumns: cols, gap: 8, alignItems: it.isNew ? "start" : "center", padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 10, background: it.isNew ? "var(--green-50)" : "var(--neutral-50)" } },
+              nameCell,
+              React.createElement("input", { className: "input mono", type: "number", min: it.received || 0, value: it.qty, title: locked ? (lang === "en" ? "Min = received qty" : "ต่ำกว่ายอดรับไม่ได้") : "", style: { padding: "8px 6px", textAlign: "center" }, onChange: (e) => setItem(i, "qty", Math.max(Number(e.target.value) || 0, it.received || 0)) }),
+              React.createElement("input", { className: "input", list: "evt-edit-units", value: it.unit || "", placeholder: "ชิ้น", style: { padding: "8px 6px", textAlign: "center" }, onChange: (e) => setItem(i, "unit", e.target.value) }),
+              React.createElement("select", { className: "input", value: it.wh || "", style: { padding: "8px 6px" }, onChange: (e) => setItem(i, "wh", e.target.value) },
+                (D.warehouses || []).map((w) => React.createElement("option", { key: w.id, value: w.id }, w.no || w.id))),
+              React.createElement("button", {
+                className: "linkbtn", disabled: locked, title: locked ? (lang === "en" ? "Already received/issued — cannot remove" : "รับ/เบิกไปแล้ว ลบไม่ได้") : (lang === "en" ? "Remove" : "ลบ"),
+                style: { justifySelf: "center", alignSelf: it.isNew ? "start" : "center", marginTop: it.isNew ? 7 : 0, color: locked ? "var(--neutral-300)" : "var(--danger)", cursor: locked ? "not-allowed" : "pointer" },
+                onClick: () => { if (!locked) removeItem(i); },
+              }, React.createElement(window.IcX, { size: 16 })));
+          })),
+        React.createElement("datalist", { id: "evt-edit-units" },
+          ["ชิ้น", "อัน", "แพค", "ชุด", "กล่อง", "ตัว", "เส้น", "ม้วน", "คู่", "ลิตร", "เมตร", "ถุง"].map((u) =>
+            React.createElement("option", { key: u, value: u }))),
+        React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", marginBottom: 16, flexWrap: "wrap" } },
+          React.createElement("div", { style: { flex: 1, minWidth: 220 } },
+            React.createElement(window.SearchSelect, { value: "", onChange: addItem, options: partOpts, placeholder: lang === "en" ? "+ Add from catalog…" : "+ เพิ่มจากคลัง…" })),
+          React.createElement(window.Btn, { variant: "soft", size: "sm", icon: React.createElement(window.IcPlus, { size: 15 }), onClick: addBlank }, lang === "en" ? "New code" : "เพิ่มรหัสใหม่")),
+
+        err ? React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", color: "var(--danger)", font: "500 13px var(--font-th)", marginBottom: 12 } },
+          React.createElement(window.IcAlert, { size: 16 }), err) : null,
+
+        React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } },
+          React.createElement(window.Btn, { variant: "ghost", onClick: onCancel, disabled: busy }, lang === "en" ? "Cancel" : "ยกเลิก"),
+          React.createElement(window.Btn, { variant: "primary", icon: React.createElement(window.IcCheck, { size: 16 }), onClick: submit, disabled: busy }, busy ? (lang === "en" ? "Saving…" : "กำลังบันทึก…") : (lang === "en" ? "Save" : "บันทึก")))));
   }
   function metaBit(label, val) {
     return React.createElement("div", null,
