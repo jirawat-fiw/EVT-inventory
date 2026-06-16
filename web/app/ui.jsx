@@ -38,10 +38,10 @@
       right || null);
   }
 
-  function KPI({ icon, val, label, delta, deltaDir, accent, onClick }) {
+  function KPI({ icon, val, label, delta, deltaDir, accent, tone, onClick }) {
     const clickable = typeof onClick === "function";
     return React.createElement("div", {
-      className: "kpi" + (accent ? " kpi-accent" : "") + (clickable ? " kpi-click" : ""),
+      className: "kpi" + (accent ? " kpi-accent" : "") + (tone ? " kpi-tone kpi-tone-" + tone : "") + (clickable ? " kpi-click" : ""),
       onClick: clickable ? onClick : undefined,
       role: clickable ? "button" : undefined,
       tabIndex: clickable ? 0 : undefined,

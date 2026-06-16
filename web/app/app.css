@@ -392,3 +392,98 @@ button { font-family: inherit; }
 @keyframes shimmer { 100% { transform: translateX(100%); } }
 .skel-line { height: 12px; margin: 8px 0; }
 .skel-row  { height: 46px; margin: 8px 0; border-radius: var(--r-md); }
+
+/* ============================================================
+   Revamp v3 — BOLD THEME (system-wide, obvious at a glance)
+   Remove this block to revert to the v2 look.
+   ============================================================ */
+
+/* ---- Background: soft green wash at the top of every page ---- */
+.main {
+  background:
+    radial-gradient(1200px 300px at 100% -8%, rgba(0,203,92,.10), transparent 60%),
+    linear-gradient(180deg, var(--green-50) 0%, var(--neutral-100) 320px);
+}
+
+/* ---- Page header: stronger, with an accent rule ---- */
+.page-head { border-bottom: none; }
+.page-head h1 { font-size: 30px; letter-spacing: -.02em; }
+.page-head .eyebrow,
+.dash-hello {
+  display: inline-flex; align-items: center;
+  background: var(--green-100); color: var(--evt-green);
+  padding: 4px 11px; border-radius: var(--r-pill); margin-bottom: 10px;
+}
+
+/* ---- Command-center KPIs: bold colored cards ---- */
+.kpi-tone { color: #fff; border: 0; box-shadow: var(--shadow-md); }
+.kpi-tone::after { display: none; }
+.kpi-tone .val { color: #fff; font-size: 32px; }
+.kpi-tone .lbl { color: rgba(255,255,255,.85); }
+.kpi-tone .ic {
+  background: rgba(255,255,255,.18) !important; color: #fff !important;
+  box-shadow: none !important; width: 44px; height: 44px;
+}
+.kpi-tone .delta {
+  color: #fff !important; background: rgba(255,255,255,.2);
+  padding: 3px 9px; border-radius: var(--r-pill); width: max-content;
+}
+.kpi-tone .kpi-go { color: rgba(255,255,255,.9); }
+.kpi-tone:hover { box-shadow: var(--shadow-lg); }
+.kpi-tone::before {
+  content: ""; position: absolute; right: -30px; bottom: -40px; width: 150px; height: 150px;
+  background: rgba(255,255,255,.08); border-radius: 50%; pointer-events: none;
+}
+.kpi-tone-emerald { background: linear-gradient(150deg, #00A64A 0%, #00652E 100%); }
+.kpi-tone-teal    { background: linear-gradient(150deg, #11A092 0%, #0B6B60 100%); }
+.kpi-tone-amber   { background: linear-gradient(150deg, #E0A52B 0%, #9C5B12 100%); }
+.kpi-tone-deep    { background: linear-gradient(150deg, #064f27 0%, #002612 100%); }
+.kpi-tone-deep .ic { color: var(--new-day-green) !important; }
+
+/* ---- Cards: crisper, tinted headers ---- */
+.card { border-radius: var(--r-lg); box-shadow: var(--shadow-md); }
+.card-head {
+  background: linear-gradient(180deg, var(--green-50), #fff);
+  border-bottom: 1px solid var(--green-100);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+}
+.card-head h3 { position: relative; padding-left: 13px; }
+.card-head h3::before {
+  content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 4px;
+  background: var(--new-day-green); border-radius: 999px;
+}
+
+/* ---- Tables: tinted header + zebra rows ---- */
+.tbl thead th { background: var(--green-50); color: var(--smart-green); border-bottom: 2px solid var(--green-200); }
+.tbl tbody tr:nth-child(even) { background: color-mix(in oklab, var(--green-50) 45%, #fff); }
+.tbl tbody tr.clickable:hover { background: var(--green-100); }
+
+/* ---- Sidebar: bolder brand + punchier active state ---- */
+.sb { padding-top: 20px; }
+.sb-brand { padding-bottom: 16px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.sb-brand img { height: 38px; }
+.sb-link.is-active {
+  background: var(--evt-green);
+  box-shadow: 0 8px 20px -8px rgba(0,203,92,.6), inset 0 1px 0 rgba(255,255,255,.12);
+}
+.sb-link.is-active::before { width: 5px; box-shadow: 0 0 12px 1px rgba(0,203,92,.7); }
+.sb-group-label { color: rgba(255,255,255,.5); }
+
+/* ---- Topbar: pill search + accent underline ---- */
+.topbar {
+  height: 70px;
+  border-bottom: 1px solid var(--green-100);
+  box-shadow: 0 2px 0 rgba(0,203,92,.18), 0 10px 22px -16px rgba(0,38,18,.25);
+}
+.topbar .search { border-radius: var(--r-pill); background: var(--neutral-100); border-color: transparent; }
+.topbar .search:focus-within { background: #fff; border-color: var(--green-200); box-shadow: 0 0 0 3px var(--ring); }
+.tb-btn { border-radius: var(--r-pill); }
+.tb-avatar { background: linear-gradient(135deg, var(--green-100), var(--green-200)); }
+
+/* ---- Primary action buttons: a touch bigger & rounder for presence ---- */
+.btn { border-radius: var(--r-md); }
+.btn-primary { background: linear-gradient(135deg, #00813a, #00652E); }
+.btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, #00702f, #00521f); }
+
+/* ---- Section tweaks under compact density keep colored headers readable ---- */
+.main[data-density="compact"] .page-head h1 { font-size: 25px; }

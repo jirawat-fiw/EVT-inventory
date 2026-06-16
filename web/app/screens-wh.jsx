@@ -15,10 +15,10 @@
     const tracking = data.prs.filter((p) => p.status === "ordered" || p.status === "partial");
 
     const kpis = React.createElement("div", { className: "grid g-4" },
-      React.createElement(window.KPI, { icon: React.createElement(window.IcFile, { size: 20 }), val: openPRs.length, label: t("kpi_open_pr"), delta: "+2", deltaDir: "up", onClick: () => go("registry") }),
-      React.createElement(window.KPI, { icon: React.createElement(window.IcReceive, { size: 20 }), val: D.fmtNum(awaiting) + " " + t("pieces"), label: t("kpi_await"), onClick: () => go("receive") }),
-      React.createElement(window.KPI, { icon: React.createElement(window.IcAlert, { size: 20 }), val: low.length, label: t("kpi_low"), delta: low.length ? (lang === "en" ? "reorder" : "ต้องสั่ง") : "", deltaDir: "dn", onClick: () => go("stock") }),
-      React.createElement(window.KPI, { icon: React.createElement(window.IcBox, { size: 20 }), val: D.fmtNum(issuedCount) + " " + t("pieces"), label: t("kpi_issued"), accent: true, onClick: () => go("withdraw") }));
+      React.createElement(window.KPI, { icon: React.createElement(window.IcFile, { size: 22 }), val: openPRs.length, label: t("kpi_open_pr"), delta: "+2", deltaDir: "up", tone: "emerald", onClick: () => go("registry") }),
+      React.createElement(window.KPI, { icon: React.createElement(window.IcReceive, { size: 22 }), val: D.fmtNum(awaiting) + " " + t("pieces"), label: t("kpi_await"), tone: "teal", onClick: () => go("receive") }),
+      React.createElement(window.KPI, { icon: React.createElement(window.IcAlert, { size: 22 }), val: low.length, label: t("kpi_low"), delta: low.length ? (lang === "en" ? "reorder" : "ต้องสั่ง") : "", deltaDir: "dn", tone: "amber", onClick: () => go("stock") }),
+      React.createElement(window.KPI, { icon: React.createElement(window.IcBox, { size: 22 }), val: D.fmtNum(issuedCount) + " " + t("pieces"), label: t("kpi_issued"), tone: "deep", onClick: () => go("withdraw") }));
 
     const recentPR = React.createElement(window.Card, null,
       React.createElement(window.CardHead, { title: t("pr_recent"), right: React.createElement("button", { className: "linkbtn", onClick: () => go("registry") }, t("viewall"), React.createElement(window.IcChevR, { size: 14 })) }),
