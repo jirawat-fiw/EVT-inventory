@@ -111,7 +111,7 @@
   // ============================================================
   //  OPEN PR — scan + OCR
   // ============================================================
-  function OpenPR({ t, lang, actions, go, reviewLayout }) {
+  function OpenPR({ t, lang, actions, go, reviewLayout, setToast }) {
     const [phase, setPhase] = useState(0); // 0 upload, 1 scan, 2 review, 3 done
     const [drag, setDrag] = useState(false);
     const [form, setForm] = useState(null);
@@ -211,6 +211,11 @@
     function removeRow(i) { setForm((f) => ({ ...f, items: f.items.filter((_, x) => x !== i) })); }
 
     function save() {
+      const id = (form.prCode || "").trim();
+      if (!id) { setToast && setToast(lang === "en" ? "PR number required" : "กรุณากรอกเลขที่ PR"); return; }
+      if ((D.prs || []).some((p) => p.id === id)) {
+        setToast && setToast(lang === "en" ? "PR number already exists" : "เลขที่ PR นี้มีอยู่แล้ว — เปลี่ยนเลขก่อนบันทึก"); return;
+      }
       const pr = {
         id: form.prCode, date: form.date, dept: form.deptId, requester: form.requester,
         requesterUnit: form.requesterUnit, status: "pending", scanned: !manual, note: form.note,
@@ -362,6 +367,7 @@
 
   function ReviewForm({ t, lang, form, setItem, addRow, removeRow, save, onRescan, setForm, manual }) {
     const lowCount = manual ? 0 : form.items.filter((it) => it.conf < 0.85).length;
+    const dupPR = (D.prs || []).some((p) => p.id === (form.prCode || "").trim());
     const head = (k, key, val, full) => React.createElement(window.Field, { label: t(k) },
       React.createElement("input", { className: "input", value: val, onChange: (e) => setForm((f) => ({ ...f, [key]: e.target.value })) }));
     return React.createElement(window.Card, null,
@@ -381,6 +387,7 @@
             React.createElement("select", { className: "input", value: form.deptId, onChange: (e) => setForm((f) => ({ ...f, deptId: e.target.value })) },
               D.departments.map((d) => React.createElement("option", { key: d.id, value: d.id, title: d.detail }, `${d.id} · ${d.th}`)))),
           head("requester", "requester", form.requester)),
+        dupPR ? React.createElement("div", { style: { margin: "-6px 0 14px", padding: "8px 12px", borderRadius: 8, background: "#FEF2F2", border: "1px solid var(--danger)", color: "var(--danger)", font: "500 12px var(--font-th)" } }, "⚠ เลขที่ PR นี้มีอยู่แล้ว — โปรดเปลี่ยนเลขก่อนบันทึก") : null,
         React.createElement("div", { style: { marginBottom: 16 } },
           React.createElement(window.Field, { label: t("dept_detail") },
             React.createElement("div", { className: "dept-detail" }, (D.deptById(form.deptId) || {}).detail || "—"))),
@@ -402,7 +409,7 @@
         React.createElement("hr", { className: "hr", style: { margin: "18px 0" } }),
         React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } },
           React.createElement(window.Btn, { variant: "ghost", onClick: onRescan }, t("cancel")),
-          React.createElement(window.Btn, { variant: "primary", icon: React.createElement(window.IcCheck, { size: 17 }), onClick: save }, t("save_pr")))));
+          React.createElement(window.Btn, { variant: "primary", disabled: dupPR, icon: React.createElement(window.IcCheck, { size: 17 }), onClick: save }, t("save_pr")))));
   }
 
   function ReviewItem({ it, i, t, lang, setItem, removeRow, manual }) {

@@ -33,6 +33,12 @@
 
     async function submit() {
       if (!cart.length || busy) return;
+      // กันเบิกเกินสต็อก
+      const over = cart.find((c) => { const p = D.partByCode(c.code); return p && c.qty > p.stock; });
+      if (over) { setToast(lang === "en" ? "Over stock — please adjust qty" : "มีรายการเบิกเกินสต็อก โปรดแก้ไขจำนวน"); return; }
+      // เตือนจำนวนมากผิดปกติ (กันพิมพ์เกิน เช่น 100 แทน 10)
+      const big = cart.find((c) => c.qty >= 100);
+      if (big && !window.confirm((lang === "en" ? "Confirm large withdrawal of " : "ยืนยันเบิกจำนวนมาก ") + big.qty + (lang === "en" ? " units?" : " หน่วย?"))) return;
       setBusy(true);
       try {
         const lines = cart.map((c) => ({ code: c.code, qty: c.qty, part: D.partByCode(c.code) }));
@@ -125,10 +131,12 @@
               : React.createElement(React.Fragment, null,
                   cart.map((c) => {
                     const p = D.partByCode(c.code);
+                    const over = p && c.qty > p.stock;
                     return React.createElement("div", { key: c.code, className: "cart-item" },
                       React.createElement("div", { className: "ci-main" },
                         React.createElement("b", null, lang === "en" ? p.en : p.th),
-                        React.createElement("small", { className: "mono" }, c.code)),
+                        React.createElement("small", { className: "mono" }, c.code),
+                        over ? React.createElement("small", { style: { color: "var(--danger)", fontWeight: 600 } }, (lang === "en" ? "Over stock! left " : "เกินสต็อก! เหลือ ") + p.stock) : null),
                       React.createElement("div", { className: "rcv-stepper" },
                         React.createElement("button", { onClick: () => setQty(c.code, c.qty - 1) }, "−"),
                         React.createElement("input", { className: "mono", value: c.qty, onChange: (e) => setQty(c.code, parseInt(e.target.value) || 1) }),

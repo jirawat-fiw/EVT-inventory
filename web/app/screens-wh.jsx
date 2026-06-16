@@ -1,6 +1,6 @@
 /* EVT — Dashboard, Receiving, Withdraw, Inventory, PR detail */
 (function () {
-  const { useState } = React;
+  const { useState, useEffect } = React;
   const D = window.EVTDATA;
   const fmtDate = window.fmtDate;
 
@@ -67,6 +67,35 @@
               React.createElement("td", { className: "mono", style: { color: "var(--fg-subtle)", fontSize: 12 } }, fmtDate(w.date, lang)));
           }))));
 
+    // ---- แนวโน้มการใช้: เดือนล่าสุด vs เดือนก่อนหน้า (ช่วยวางแผนสั่งซื้อ) ----
+    const issMonths = Array.from(new Set(data.issues.map((w) => w.date && w.date.slice(0, 7)).filter(Boolean))).sort().reverse();
+    const mNow = issMonths[0], mPrev = issMonths[1];
+    const sumByMonth = (m) => { const o = {}; if (!m) return o; data.issues.forEach((w) => { if (w.date && w.date.slice(0, 7) === m) o[w.code] = (o[w.code] || 0) + w.qty; }); return o; };
+    const curMap = sumByMonth(mNow), prevMap = sumByMonth(mPrev);
+    const trend = Array.from(new Set([...Object.keys(curMap), ...Object.keys(prevMap)]))
+      .map((code) => ({ code, cur: curMap[code] || 0, prev: prevMap[code] || 0 }))
+      .sort((a, b) => b.cur - a.cur || b.prev - a.prev).slice(0, 6);
+    const tMax = Math.max(1, ...trend.map((x) => Math.max(x.cur, x.prev)));
+    const usageTrend = React.createElement(window.Card, null,
+      React.createElement(window.CardHead, { title: t("usage_trend"), sub: (mNow ? monthShort(mNow, lang) : "—") + (mPrev ? " vs " + monthShort(mPrev, lang) : "") }),
+      React.createElement("div", { className: "card-pad", style: { display: "flex", flexDirection: "column", gap: 13 } },
+        trend.length === 0
+          ? React.createElement("div", { style: { color: "var(--fg-subtle)", font: "400 14px var(--font-th)" } }, t("wd_empty"))
+          : trend.map((x) => {
+              const p = D.partByCode(x.code);
+              const diff = x.cur - x.prev;
+              const dirColor = diff > 0 ? "var(--smart-green)" : diff < 0 ? "var(--danger)" : "var(--fg-subtle)";
+              const arrow = diff > 0 ? "▲" : diff < 0 ? "▼" : "–";
+              return React.createElement("div", { key: x.code, style: { display: "flex", alignItems: "center", gap: 12 } },
+                React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                  React.createElement("div", { style: { font: "500 13px var(--font-th)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, p ? (lang === "en" ? p.en : p.th) : x.code),
+                  React.createElement("div", { style: { display: "flex", gap: 4, marginTop: 4 } },
+                    React.createElement("div", { title: "เดือนก่อน", style: { height: 7, borderRadius: 999, background: "var(--neutral-200)", width: (x.prev / tMax * 100) + "%", minWidth: x.prev ? 6 : 0 } }),
+                    React.createElement("div", { title: "เดือนนี้", style: { height: 7, borderRadius: 999, background: "var(--new-day-green)", width: (x.cur / tMax * 100) + "%", minWidth: x.cur ? 6 : 0 } }))),
+                React.createElement("span", { className: "mono", style: { font: "700 14px var(--font-en)", color: "var(--strong-green)", width: 38, textAlign: "right" } }, x.cur),
+                React.createElement("span", { style: { font: "600 12px var(--font-en)", color: dirColor, width: 42, textAlign: "right" } }, arrow + " " + (diff > 0 ? "+" : "") + diff));
+            })));
+
     return React.createElement("div", { className: "page fadein" },
       React.createElement("div", { className: "page-head" },
         React.createElement("div", null,
@@ -79,7 +108,15 @@
         ? React.createElement("div", { className: "grid resp-grid", style: { gridTemplateColumns: "1.4fr 1fr", marginTop: 18 } }, tracker, React.createElement("div", { className: "grid", style: { gridTemplateRows: "auto auto", gap: 18 } }, lowStock, recentIssue))
         : React.createElement(React.Fragment, null,
             React.createElement("div", { className: "grid resp-grid", style: { gridTemplateColumns: "1.5fr 1fr", marginTop: 18 } }, tracker, lowStock),
-            React.createElement("div", { className: "grid resp-grid", style: { gridTemplateColumns: "1fr 1fr", marginTop: 18 } }, recentPR, recentIssue)));
+            React.createElement("div", { className: "grid resp-grid", style: { gridTemplateColumns: "1fr 1fr", marginTop: 18 } }, recentPR, recentIssue),
+            React.createElement("div", { className: "grid", style: { gridTemplateColumns: "1fr", marginTop: 18 } }, usageTrend)));
+  }
+
+  function monthShort(ym, lang) {
+    const [y, m] = ym.split("-").map(Number);
+    const th = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    const en = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return lang === "en" ? `${en[m - 1]} ${y}` : `${th[m - 1]} ${(y + 543) % 100}`;
   }
 
   function TrackBar({ pr, t, lang, onClick }) {
@@ -220,12 +257,16 @@
   // ============================================================
   //  INVENTORY
   // ============================================================
-  function Inventory({ t, lang, data, go }) {
+  function Inventory({ t, lang, data, go, extQuery }) {
     const cats = ["ทั้งหมด", ...Array.from(new Set(data.parts.map((p) => p.cat)))];
     const [cat, setCat] = useState("ทั้งหมด");
     const whList = window.whWithData(data.warehouses, new Set(data.parts.map((p) => p.wh)));
     const [wh, setWh] = useState("");
-    const rows = data.parts.filter((p) => (cat === "ทั้งหมด" || p.cat === cat) && (wh === "" || p.wh === wh));
+    const [q, setQ] = useState(extQuery || "");
+    useEffect(() => { if (extQuery) setQ(extQuery); }, [extQuery]);
+    const qq = q.trim().toLowerCase();
+    const rows = data.parts.filter((p) => (cat === "ทั้งหมด" || p.cat === cat) && (wh === "" || p.wh === wh)
+      && (!qq || p.code.toLowerCase().includes(qq) || (p.th || "").toLowerCase().includes(qq) || (p.en || "").toLowerCase().includes(qq)));
     return React.createElement("div", { className: "page fadein" },
       React.createElement("div", { className: "page-head" },
         React.createElement("div", null,
@@ -233,6 +274,10 @@
           React.createElement("h1", null, t("stk_title")),
           React.createElement("p", null, t("stk_sub"))),
         React.createElement(window.Btn, { variant: "soft", icon: React.createElement(window.IcWithdraw, { size: 16 }), onClick: () => go("withdraw") }, t("nav_withdraw"))),
+      React.createElement("div", { className: "search", style: { border: "1.5px solid var(--border)", background: "#fff", maxWidth: 380, marginBottom: 14 } },
+        React.createElement(window.IcSearch, { size: 17 }),
+        React.createElement("input", { value: q, onChange: (e) => setQ(e.target.value), placeholder: t("wd_search") }),
+        q ? React.createElement("button", { className: "linkbtn", onClick: () => setQ(""), style: { padding: "0 6px" } }, React.createElement(window.IcX, { size: 15 })) : null),
       React.createElement(window.WarehouseFilter, { value: wh, onChange: setWh, list: whList, lang, allLabel: lang === "en" ? "All warehouses" : "ทุกคลัง" }),
       React.createElement("div", { className: "cat-row" },
         cats.map((c) => React.createElement("button", { key: c, className: "cat-pill" + (cat === c ? " on" : ""), onClick: () => setCat(c) }, c === "ทั้งหมด" ? t("all") : c))),

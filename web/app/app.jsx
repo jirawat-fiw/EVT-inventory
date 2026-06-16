@@ -46,6 +46,41 @@
     ]},
   ];
 
+  // ---------- ค้นหาทั่วระบบ (แถบบน) ----------
+  function GlobalSearch({ tr, lang, db, onPR, onPart }) {
+    const [q, setQ] = useState("");
+    const [open, setOpen] = useState(false);
+    const qq = q.trim().toLowerCase();
+    const prHits = qq ? db.prs.filter((p) => (p.id || "").toLowerCase().includes(qq) || (p.requester || "").toLowerCase().includes(qq)).slice(0, 5) : [];
+    const partHits = qq ? db.parts.filter((p) => (p.code || "").toLowerCase().includes(qq) || (p.th || "").toLowerCase().includes(qq) || (p.en || "").toLowerCase().includes(qq)).slice(0, 6) : [];
+    const has = prHits.length || partHits.length;
+    const pick = (fn) => { fn(); setQ(""); setOpen(false); };
+    const dropStyle = { position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "#fff", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "var(--shadow-lg)", padding: 6, zIndex: 50, maxHeight: 380, overflowY: "auto" };
+    const secStyle = { font: "700 10px var(--font-en)", letterSpacing: ".06em", textTransform: "uppercase", color: "var(--fg-subtle)", padding: "7px 10px 3px" };
+    const itemStyle = { display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", border: 0, background: "transparent", padding: "8px 10px", borderRadius: 7, cursor: "pointer", font: "500 13px var(--font-th)" };
+    return React.createElement("div", { className: "search", style: { position: "relative" } },
+      React.createElement(window.IcSearch, { size: 17 }),
+      React.createElement("input", {
+        value: q, placeholder: tr("search"),
+        onChange: (e) => { setQ(e.target.value); setOpen(true); },
+        onFocus: () => setOpen(true),
+        onBlur: () => setTimeout(() => setOpen(false), 150),
+      }),
+      (open && qq) ? React.createElement("div", { style: dropStyle },
+        !has ? React.createElement("div", { style: { padding: "10px", color: "var(--fg-subtle)", font: "400 13px var(--font-th)" } }, tr("search_none"))
+        : React.createElement(React.Fragment, null,
+            prHits.length ? React.createElement("div", { style: secStyle }, tr("nav_registry")) : null,
+            prHits.map((p) => React.createElement("button", { key: "pr" + p.id, style: itemStyle, onMouseDown: (e) => e.preventDefault(), onClick: () => pick(() => onPR(p.id)) },
+              React.createElement("span", { className: "mono", style: { color: "var(--evt-green)", fontWeight: 600 } }, p.id),
+              React.createElement("span", { style: { color: "var(--fg-subtle)", fontSize: 12 } }, p.requester || ""))),
+            partHits.length ? React.createElement("div", { style: secStyle }, tr("nav_stock")) : null,
+            partHits.map((p) => React.createElement("button", { key: "pt" + p.code, style: itemStyle, onMouseDown: (e) => e.preventDefault(), onClick: () => pick(() => onPart(p.code)) },
+              React.createElement("span", { className: "mono", style: { color: "var(--evt-green)", fontWeight: 600, flexShrink: 0 } }, p.code),
+              React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, lang === "en" ? p.en : p.th),
+              React.createElement("span", { className: "mono", style: { marginLeft: "auto", flexShrink: 0, fontSize: 12, color: p.stock < p.min ? "var(--danger)" : "var(--fg-subtle)" } }, p.stock)))
+          )) : null);
+  }
+
   const ADMIN_EMAIL = "jirawat@evthai.com"; // เฉพาะอีเมลนี้แก้ไขข้อมูลได้
 
   function App({ user }) {
@@ -55,6 +90,7 @@
     const [lang, setLang] = useState(() => localStorage.getItem("evt_lang") || "th");
     const [role, setRole] = useState("role_store");
     const [view, setView] = useState("dashboard");
+    const [stockQ, setStockQ] = useState("");   // ค้นหาจากแถบบน → กรองหน้าคลัง
     const [db, setDb] = useState(() => seed(user));
     const [detail, setDetail] = useState(null);
     const [toast, setToast] = useState(null);
@@ -157,7 +193,7 @@
     else if (view === "registry") screen = React.createElement(window.Registry, common);
     else if (view === "receive") screen = React.createElement(window.Receive, common);
     else if (view === "withdraw") screen = React.createElement(window.Withdraw, { ...common, pickerStyle: t.pickerStyle });
-    else if (view === "stock") screen = React.createElement(window.Inventory, common);
+    else if (view === "stock") screen = React.createElement(window.Inventory, { ...common, extQuery: stockQ });
     else if (view === "summary") screen = React.createElement(window.Summary, common);
     else if (view === "admin") screen = isAdmin
       ? React.createElement(window.Admin, common)
@@ -184,9 +220,11 @@
       // main
       React.createElement("div", { className: "main", "data-density": t.density },
         React.createElement("div", { className: "topbar no-print" },
-          React.createElement("div", { className: "search" },
-            React.createElement(window.IcSearch, { size: 17 }),
-            React.createElement("input", { placeholder: tr("search") })),
+          React.createElement(GlobalSearch, {
+            tr, lang, db,
+            onPR: (id) => setDetail(id),
+            onPart: (code) => { setStockQ(code); go("stock"); setTimeout(() => setStockQ(""), 100); },
+          }),
           React.createElement("div", { className: "spacer" }),
           React.createElement("div", { className: "tb-seg" },
             React.createElement("button", { className: lang === "th" ? "on" : "", onClick: () => setLang("th") }, "TH"),

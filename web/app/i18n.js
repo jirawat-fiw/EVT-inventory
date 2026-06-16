@@ -22,6 +22,8 @@
     wd_reprint:     { th: "พิมพ์ใบเบิก", en: "Print slip" },
     wd_dept:        { th: "แผนกที่เบิก", en: "Department" },
     receiver:       { th: "ผู้รับของ", en: "Received by" },
+    usage_trend:    { th: "แนวโน้มการใช้", en: "Usage Trend" },
+    search_none:    { th: "ไม่พบรายการ", en: "No results" },
 
     search:         { th: "ค้นหา PR, อะไหล่, รหัส…", en: "Search PR, parts, code…" },
     role:           { th: "บทบาท", en: "Role" },
