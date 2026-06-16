@@ -1,0 +1,5 @@
+# Local-only preview harness (bypasses auth with mock data) — never deploy
+web/preview.html
+
+# Claude Code local dev helpers (static preview server, launch config)
+.claude/

@@ -139,6 +139,7 @@
 .doc-tbl th { background: var(--green-50); color: var(--strong-green); font: 700 11px var(--font-en); letter-spacing: .04em;
   text-transform: uppercase; padding: 9px 12px; text-align: left; border-bottom: 2px solid var(--green-200); }
 .doc-tbl td { padding: 10px 12px; border-bottom: 1px solid var(--neutral-200); font: 400 13px var(--font-th); }
+.doc-tbl tbody tr:nth-child(even) td { background: #f5faf6; }   /* zebra — ไล่บรรทัดง่ายตอนพิมพ์ */
 .doc-tbl .num { text-align: right; font-family: var(--font-en); font-variant-numeric: tabular-nums; }
 .doc-tbl tfoot td { font-weight: 700; border-top: 2px solid var(--green-200); border-bottom: 0; color: var(--strong-green); }
 .doc-sign { display: flex; justify-content: space-between; gap: 40px; margin-top: 50px; }
@@ -210,13 +211,22 @@
   .main { height: auto; overflow: visible; }
   .page { padding: 0 !important; max-width: none; }
   .print-only { display: block !important; }
-  .doc-sheet { box-shadow: none; width: 100%; padding: 0; border-radius: 0; }
+  /* พื้นหลังธีม (เขียวไล่เฉด) ไม่ต้องพิมพ์ — กันหมึกเลอะทั้งหน้า */
+  .main { background: #fff !important; }
+  /* เอกสารพิมพ์สีตามดีไซน์จริง (เดิม browser ตัดพื้นหลังทิ้งทำให้ดูจืด) */
+  .doc-sheet { box-shadow: none; width: 100%; padding: 0; border-radius: 0;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   /* รายงานยาว ๆ ให้ไหลข้ามหน้าได้สวย */
-  .doc-tbl { break-inside: auto; }
+  .doc-tbl { break-inside: auto; margin-bottom: 16px !important; }
   .doc-tbl thead { display: table-header-group; }   /* หัวตารางซ้ำทุกหน้า */
   .doc-tbl tfoot { display: table-footer-group; }
   .doc-tbl tr { break-inside: avoid; }              /* ไม่ตัดแถวกลางคัน */
-  .doc-sign { break-inside: avoid; }                /* ช่องลายเซ็นไม่แตกหน้า */
+  .doc-tbl tfoot tr { break-inside: avoid; }        /* แถวรวมไม่แตกหน้า */
+  .doc-kpis { break-inside: avoid; margin-bottom: 18px !important; }  /* แถบสรุปไม่แตกหน้า */
+  .doc-sec  { break-after: avoid; break-inside: avoid; }              /* หัวข้อติดกับตาราง */
+  .doc-top  { break-inside: avoid; }                 /* อันดับเบิกมากสุดไม่แตกหน้า */
+  .doc-sign { break-inside: avoid; margin-top: 34px !important; }     /* ช่องลายเซ็นไม่แตกหน้า */
+  .doc-foot { break-inside: avoid; }
   body.print-labels .app { display: none !important; }
   body.print-labels .label-overlay { position: static; inset: auto; overflow: visible; background: #fff; padding: 0; }
   .label-sheet { box-shadow: none !important; margin: 0 !important; break-after: page; page: evtlabel; }

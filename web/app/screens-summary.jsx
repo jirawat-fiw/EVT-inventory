@@ -86,7 +86,7 @@
             React.createElement("span", null, t("sum_period") + " · " + monthLabel(month, lang) + (wh ? " · " + ((D.whById(wh) || {}).th || "") : "")))),
 
         // KPI band — quantities only
-        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 26 } },
+        React.createElement("div", { className: "doc-kpis", style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 26 } },
           sumKpi(prOpened, t("sum_pr_opened")),
           sumKpi("+" + D.fmtNum(receivedQty), t("sum_received_v"), "in"),
           sumKpi("−" + D.fmtNum(issuedQty), t("sum_issued_v"), "out"),
@@ -143,7 +143,7 @@
 
         // SECTION 3 — top parts by qty
         React.createElement(SecTitle, { n: 3, title: t("sum_top_parts") }),
-        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 11, marginBottom: 24 } },
+        React.createElement("div", { className: "doc-top", style: { display: "flex", flexDirection: "column", gap: 11, marginBottom: 24 } },
           topParts.map(([code, qty], i) => {
             const p = D.partByCode(code);
             return React.createElement("div", { key: code, style: { display: "flex", alignItems: "center", gap: 12 } },
@@ -157,7 +157,10 @@
         React.createElement("div", { className: "doc-sign" },
           React.createElement("div", { className: "s" }, React.createElement("div", { className: "line" }), React.createElement("span", null, t("sum_prepared") + " · " + (lang === "en" ? "Warehouse" : "ฝ่ายคลัง"))),
           React.createElement("div", { className: "s" }, React.createElement("div", { className: "line" }), React.createElement("span", null, t("approver")))),
-        React.createElement("div", { className: "doc-foot" }, t("tagline"))));
+        React.createElement("div", { className: "doc-foot" },
+          React.createElement("div", null, t("tagline")),
+          React.createElement("div", { style: { marginTop: 3, color: "var(--fg-subtle)" } },
+            (lang === "en" ? "Printed " : "พิมพ์เมื่อ ") + fmtDate(new Date().toISOString().slice(0, 10), lang)))));
   }
 
   function sumKpi(val, label, dir) {
@@ -168,7 +171,7 @@
   }
   function SecTitle({ n, title, icon }) {
     const bg = icon === "in" ? "var(--smart-green)" : "var(--strong-green)";
-    return React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, margin: "8px 0 16px" } },
+    return React.createElement("div", { className: "doc-sec", style: { display: "flex", alignItems: "center", gap: 10, margin: "8px 0 16px" } },
       React.createElement("span", { style: { width: 24, height: 24, borderRadius: 7, background: bg, color: "var(--evt-gold)", font: "800 12px var(--font-en)", display: "flex", alignItems: "center", justifyContent: "center" } }, n),
       React.createElement("h3", { style: { margin: 0, font: "700 16px var(--font-th)", color: "var(--strong-green)" } }, title));
   }
