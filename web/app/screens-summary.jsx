@@ -53,7 +53,7 @@
     const reasonOf = (w) => w.jobTitle || (w.vehicle !== "—" ? "" : (lang === "en" ? "Restock" : "เติมสต็อก"));
     const forOf = (w) => {
       if (w.vehicle && w.vehicle !== "—") { const v = D.vehById(w.vehicle); return v ? `${v.id} · ${v.plate}` : w.vehicle; }
-      const d = D.deptById(w.dept); return d ? (lang === "en" ? d.en : d.th) : "—";
+      return "—"; // ไม่ได้ระบุรถ → ขีด (ไม่ดึงชื่อแผนกมาแสดง)
     };
 
     return React.createElement("div", { className: "page fadein" },
