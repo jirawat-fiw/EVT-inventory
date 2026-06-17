@@ -85,6 +85,7 @@
     replace(state.issues, issues.data.map((i) => ({
       id: i.id, date: i.date, code: i.part_code, qty: i.qty, wh: i.warehouse_id, by: i.issued_by,
       dept: i.dept_id, vehicle: i.vehicle_id || "—", job: i.job_no, jobTitle: i.job_title, prRef: i.pr_ref,
+      createdAt: i.created_at,   // เวลา transaction — ใช้แยก "ครั้งที่เบิก" (batch) ตอนปริ้นย้อนหลัง
     })));
     replace(state.receipts, receipts.data.map((r2) => ({
       id: r2.id, date: r2.date, pr: r2.pr_id, code: r2.part_code, qty: r2.qty, by: r2.received_by,

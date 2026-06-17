@@ -55,11 +55,12 @@
       } finally { setBusy(false); }
     }
 
-    // จัดกลุ่มประวัติการเบิกเป็น "ครั้ง" (วันที่+งาน+รถ+ผู้เบิก) เพื่อพิมพ์ใบเบิกย้อนหลัง
+    // จัดกลุ่มประวัติการเบิกเป็น "ครั้งที่เบิกจริง" (แต่ละครั้งที่กดบันทึก = 1 ใบ)
+    // ใช้ created_at (เวลา transaction) เป็นตัวแยก batch — เบิกของเดิมซ้ำในวัน/งานเดียวกันจึงไม่ถูกยุบรวม
     const histGroups = [];
     const _gmap = {};
     (data.issues || []).forEach((iss) => {
-      const key = [iss.date, iss.job || "", iss.vehicle || "", iss.by || ""].join("|");
+      const key = iss.createdAt || iss.id;
       let g = _gmap[key];
       if (!g) { g = _gmap[key] = { key, date: iss.date, job: iss.job, vehicle: iss.vehicle, by: iss.by, jobTitle: iss.jobTitle, dept: iss.dept, ids: [], lines: [], qty: 0 }; histGroups.push(g); }
       g.ids.push(iss.id); g.qty += (iss.qty || 0);
