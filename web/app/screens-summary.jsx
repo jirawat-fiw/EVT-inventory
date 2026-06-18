@@ -53,7 +53,8 @@
     const reasonOf = (w) => w.jobTitle || (w.vehicle !== "—" ? "" : (lang === "en" ? "Restock" : "เติมสต็อก"));
     const forOf = (w) => {
       if (w.vehicle && w.vehicle !== "—") { const v = D.vehById(w.vehicle); return v ? `${v.id} · ${v.plate}` : w.vehicle; }
-      return "—"; // ไม่ได้ระบุรถ → ขีด (ไม่ดึงชื่อแผนกมาแสดง)
+      if (w.charger) { const c = D.chargerById(w.charger); return c ? `${c.id} · ${c.kw}kW ${c.model}` : w.charger; }
+      return "—"; // ไม่ระบุรถ/ตู้ชาร์จ → ขีด (ไม่ดึงชื่อแผนกมาแสดง)
     };
 
     return React.createElement("div", { className: "page fadein" },

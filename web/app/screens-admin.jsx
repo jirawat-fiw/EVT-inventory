@@ -97,6 +97,36 @@
           { k: "chassis", label: L(lang, "เลขตัวถัง", "Chassis") },
         ],
       },
+      charger: {
+        label: L(lang, "ตู้ชาร์จ", "Chargers"), pk: "id", list: data.chargers || [],
+        cols: [
+          { k: "id", h: "ID", mono: true },
+          { k: "kw", h: "kW", num: true },
+          { k: "model", h: L(lang, "รุ่น", "Model"), main: true },
+          { k: "modelTh", h: L(lang, "ชื่อไทย", "Name TH") },
+          { k: "location", h: L(lang, "ที่ตั้ง", "Location") },
+          { k: "imported", h: L(lang, "ปีนำเข้า", "Imported") },
+        ],
+        fields: [
+          { k: "id", label: L(lang, "รหัสตู้ชาร์จ", "Charger ID"), req: true, pkLock: true, ph: "เช่น CHG-01" },
+          { k: "no", label: L(lang, "ลำดับ", "No."), num: true },
+          { k: "kw", label: L(lang, "กำลัง (kW)", "Power (kW)"), num: true },
+          { k: "model", label: L(lang, "รุ่น", "Model"), ph: "เช่น ATRESS" },
+          { k: "modelTh", label: L(lang, "ชื่อ (ไทย)", "Name (TH)"), ph: "โกรวัตต์" },
+          { k: "imported", label: L(lang, "ปีนำเข้า", "Imported"), ph: "ก.ค.-2021" },
+          { k: "location", label: L(lang, "ที่ตั้ง", "Location"), ph: "อู่พระราม8" },
+        ],
+        blank: () => ({ id: "", no: "", kw: 0, model: "", modelTh: "", imported: "", location: "" }),
+        importCols: [
+          { k: "id", label: "ID", req: true },
+          { k: "no", label: L(lang, "ลำดับ", "No."), num: true },
+          { k: "kw", label: "kW", num: true },
+          { k: "model", label: L(lang, "รุ่น", "Model") },
+          { k: "modelTh", label: L(lang, "ชื่อไทย", "Name TH") },
+          { k: "imported", label: L(lang, "ปีนำเข้า", "Imported") },
+          { k: "location", label: L(lang, "ที่ตั้ง", "Location") },
+        ],
+      },
       dept: {
         label: L(lang, "แผนก", "Departments"), pk: "id", list: data.departments,
         cols: [

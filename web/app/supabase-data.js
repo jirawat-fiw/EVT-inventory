@@ -18,7 +18,7 @@
 
   // ---- อาเรย์สถานะ (mutate ในที่เดิม เพื่อให้ helper อ้างอิงได้ตลอด) ----
   const state = {
-    warehouses: [], departments: [], vehicles: [],
+    warehouses: [], departments: [], vehicles: [], chargers: [],
     parts: [], prs: [], issues: [], receipts: [],
   };
 
@@ -41,6 +41,7 @@
   const whById = (id) => state.warehouses.find((w) => w.id === id);
   const deptById = (id) => state.departments.find((d) => d.id === id) || state.departments[0];
   const vehById = (id) => state.vehicles.find((v) => v.id === id);
+  const chargerById = (id) => state.chargers.find((c) => c.id === id);
   const fmtBaht = (n) => "฿" + (n || 0).toLocaleString("en-US");
   const fmtNum = (n) => (n || 0).toLocaleString("en-US");
 
@@ -84,9 +85,17 @@
 
     replace(state.issues, issues.data.map((i) => ({
       id: i.id, date: i.date, code: i.part_code, qty: i.qty, wh: i.warehouse_id, by: i.issued_by,
-      dept: i.dept_id, vehicle: i.vehicle_id || "—", job: i.job_no, jobTitle: i.job_title, prRef: i.pr_ref,
+      dept: i.dept_id, vehicle: i.vehicle_id || "—", charger: i.charger_id || "", job: i.job_no, jobTitle: i.job_title, prRef: i.pr_ref,
       createdAt: i.created_at,   // เวลา transaction — ใช้แยก "ครั้งที่เบิก" (batch) ตอนปริ้นย้อนหลัง
     })));
+
+    // ---- ตู้ชาร์จ: โหลดแบบไม่ให้ล้มทั้งระบบ ถ้ายังไม่ได้รัน migration 0006 (ตารางยังไม่มี) ----
+    try {
+      const ch = await sb.from("chargers").select("*").order("no");
+      replace(state.chargers, (ch.error ? [] : (ch.data || [])).map((c) => ({
+        id: c.id, no: c.no, kw: c.kw, model: c.model, modelTh: c.model_th, imported: c.imported, location: c.location,
+      })));
+    } catch (e) { replace(state.chargers, []); }
     replace(state.receipts, receipts.data.map((r2) => ({
       id: r2.id, date: r2.date, pr: r2.pr_id, code: r2.part_code, qty: r2.qty, by: r2.received_by,
     })));
@@ -224,7 +233,7 @@
         p_cart: cart.map((c) => ({ code: c.code, qty: c.qty })),
         p_meta: {
           by: info.by || "", dept: info.dept || "21",
-          vehicle: info.vehicle || "", job: info.job || "",
+          vehicle: info.vehicle || "", charger: info.charger || "", job: info.job || "",
           jobTitle: info.jobTitle || "", prRef: info.prRef || "",
         },
       });
@@ -254,6 +263,18 @@
       if (error) throw error;
     },
     async deleteVehicle(id) { const { error } = await sb.from("vehicles").delete().eq("id", id); if (error) throw error; },
+
+    async saveCharger(c, isNew) {
+      const row = {
+        id: (c.id || "").trim(), no: Number(c.no) || null, kw: Number(c.kw) || null,
+        model: c.model || null, model_th: c.modelTh || null, imported: c.imported || null, location: c.location || null,
+      };
+      const { error } = isNew
+        ? await sb.from("chargers").insert(row)
+        : await sb.from("chargers").update(row).eq("id", row.id);
+      if (error) throw error;
+    },
+    async deleteCharger(id) { const { error } = await sb.from("chargers").delete().eq("id", id); if (error) throw error; },
 
     async saveDept(d, isNew) {
       const row = { id: (d.id || "").trim(), name_th: d.th, detail: d.detail };
@@ -323,6 +344,19 @@
       if (error) throw error;
       return clean.length;
     },
+    async importChargers(rows) {
+      const clean = rows.filter((r) => (r.id || "").trim());
+      if (!clean.length) return 0;
+      const { error } = await sb.from("chargers").upsert(
+        clean.map((r) => ({
+          id: r.id.trim(), no: Number(r.no) || null, kw: Number(r.kw) || null,
+          model: r.model || null, model_th: r.modelTh || null,
+          imported: r.imported || null, location: r.location || null,
+        })),
+        { onConflict: "id" });
+      if (error) throw error;
+      return clean.length;
+    },
     async importParts(rows) {
       const clean = rows.filter((r) => (r.code || "").trim());
       if (!clean.length) return 0;
@@ -341,7 +375,7 @@
   };
 
   window.EVTDATA = Object.assign(state, {
-    ocrSample, partByCode, whById, deptById, vehById, fmtBaht, fmtNum,
+    ocrSample, partByCode, whById, deptById, vehById, chargerById, fmtBaht, fmtNum,
     load, reload: load, configured: !!sb, api,
   });
 })();

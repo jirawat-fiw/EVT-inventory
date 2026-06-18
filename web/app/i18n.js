@@ -205,7 +205,7 @@
     sum_incoming:   { th: "สรุปการรับเข้า", en: "Goods received" },
     sum_outgoing:   { th: "สรุปการเบิกออก", en: "Withdrawals issued" },
     sum_reason:     { th: "เหตุผลที่เบิก", en: "Reason" },
-    sum_for_unit:   { th: "รถ", en: "Vehicle" },
+    sum_for_unit:   { th: "รถ / ตู้ชาร์จ", en: "Vehicle / Charger" },
     sum_from_pr:    { th: "จาก PR", en: "From PR" },
     sum_by_dept:    { th: "การเบิกใช้แยกตามแผนก", en: "Consumption by department" },
     sum_by_vehicle: { th: "อะไหล่ที่ใช้ไปกับรถแต่ละคัน", en: "Parts used per vehicle" },

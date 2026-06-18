@@ -72,7 +72,10 @@
             return React.createElement("tr", { key: w.id },
               React.createElement("td", null,
                 React.createElement("div", { style: { font: "500 13px var(--font-th)" } }, p ? (lang === "en" ? p.en : p.th) : w.code),
-                React.createElement("div", { style: { font: "400 12px var(--font-th)", color: "var(--fg-subtle)" } }, w.vehicle !== "—" ? t("chassis").replace(":", "") + " " + D.vehById(w.vehicle).id + " · " + w.jobTitle : w.jobTitle)),
+                React.createElement("div", { style: { font: "400 12px var(--font-th)", color: "var(--fg-subtle)" } },
+                  w.vehicle !== "—" ? t("chassis").replace(":", "") + " " + ((D.vehById(w.vehicle) || {}).id || w.vehicle) + " · " + w.jobTitle
+                  : w.charger ? ((D.chargerById(w.charger) || {}).id || w.charger) + " · " + w.jobTitle
+                  : w.jobTitle)),
               React.createElement("td", { className: "num mono", style: { fontWeight: 700, color: "var(--strong-green)" } }, "−" + w.qty),
               React.createElement("td", { className: "mono", style: { color: "var(--fg-subtle)", fontSize: 12 } }, fmtDate(w.date, lang)));
           }))));

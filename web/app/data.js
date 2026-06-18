@@ -169,17 +169,26 @@
     ],
   };
 
+  // ---------- ตู้ชาร์จ (mock — ของจริงโหลดจาก Supabase) ----------
+  const chargers = [
+    { id: "CHG-01", no: 1, kw: 150, model: "ATRESS", modelTh: "โกรวัตต์", imported: "ก.ค.-2021", location: "อู่พระราม8" },
+    { id: "CHG-02", no: 2, kw: 120, model: "TIMXON", modelTh: "ทิมซอน", imported: "ม.ค.-2022", location: "อู่พระราม8" },
+    { id: "CHG-09", no: 9, kw: 150, model: "B-CHARGE", modelTh: "บี-ชาร์จ", imported: "ม.ค.-2024", location: "ธนารักษ์" },
+    { id: "CHG-11", no: 11, kw: 150, model: "ATRESS", modelTh: "โกรวัตต์", imported: "มิ.ย.-2023", location: "ดอนเมือง" },
+  ];
+
   // ---------- helpers ----------
   const partByCode = (code) => parts.find((p) => p.code === code);
   const whById = (id) => warehouses.find((w) => w.id === id);
   const deptById = (id) => departments.find((d) => d.id === id) || departments[0];
   const vehById = (id) => vehicles.find((v) => v.id === id);
+  const chargerById = (id) => chargers.find((c) => c.id === id);
 
   const fmtBaht = (n) => "฿" + (n || 0).toLocaleString("en-US");
   const fmtNum = (n) => (n || 0).toLocaleString("en-US");
 
   window.EVTDATA = {
-    warehouses, departments, vehicles, parts, prs, issues, receipts, ocrSample,
-    partByCode, whById, deptById, vehById, fmtBaht, fmtNum,
+    warehouses, departments, vehicles, chargers, parts, prs, issues, receipts, ocrSample,
+    partByCode, whById, deptById, vehById, chargerById, fmtBaht, fmtNum,
   };
 })();

@@ -22,7 +22,7 @@
       parts: JSON.parse(JSON.stringify(D.parts)),
       issues: JSON.parse(JSON.stringify(D.issues)),
       receipts: JSON.parse(JSON.stringify(D.receipts)),
-      vehicles: D.vehicles, warehouses: D.warehouses, departments: D.departments,
+      vehicles: D.vehicles, chargers: D.chargers, warehouses: D.warehouses, departments: D.departments,
       currentUser: userName(user),
     };
   }
@@ -125,12 +125,12 @@
         await refresh();
       },
       async adminSave(entity, obj, isNew) {
-        const fn = { part: "savePart", vehicle: "saveVehicle", dept: "saveDept", warehouse: "saveWarehouse" }[entity];
+        const fn = { part: "savePart", vehicle: "saveVehicle", dept: "saveDept", warehouse: "saveWarehouse", charger: "saveCharger" }[entity];
         await D.api[fn](obj, isNew);
         await refresh();
       },
       async adminDelete(entity, id) {
-        const fn = { part: "deletePart", vehicle: "deleteVehicle", dept: "deleteDept", warehouse: "deleteWarehouse", pr: "deletePR", issue: "deleteIssue" }[entity];
+        const fn = { part: "deletePart", vehicle: "deleteVehicle", dept: "deleteDept", warehouse: "deleteWarehouse", charger: "deleteCharger", pr: "deletePR", issue: "deleteIssue" }[entity];
         await D.api[fn](id);
         await refresh();
       },
@@ -140,7 +140,7 @@
         return ids || [];
       },
       async adminImport(entity, rows) {
-        const fn = { vehicle: "importVehicles", part: "importParts" }[entity];
+        const fn = { vehicle: "importVehicles", part: "importParts", charger: "importChargers" }[entity];
         const n = await D.api[fn](rows);
         await refresh();
         return n;
@@ -169,7 +169,7 @@
         const issue = {
           id: "WD-2569-0" + (313 + Math.floor(Math.random() * 80)),
           date: new Date().toISOString().slice(0, 10),
-          by: info.by, dept: info.dept || "21", vehicle: info.vehicle || "—", job: info.job || "—",
+          by: info.by, dept: info.dept || "21", vehicle: info.vehicle || "—", charger: info.charger || "", job: info.job || "—",
           jobTitle: info.jobTitle || (info.vehicle ? "" : "เติมสต็อก"),
         };
         setDb((s) => {

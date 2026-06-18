@@ -12,6 +12,7 @@
     const _wd = (() => { try { return JSON.parse(localStorage.getItem(WD_DRAFT) || "null") || {}; } catch (e) { return {}; } })();
     const [cart, setCart] = useState(() => _wd.cart || []); // [{code, qty}]
     const [vehicle, setVehicle] = useState(() => _wd.vehicle || "");
+    const [charger, setCharger] = useState(() => _wd.charger || "");
     const [job, setJob] = useState(() => _wd.job || "");
     const [jobTitle, setJobTitle] = useState(() => _wd.jobTitle || "");
     const [slip, setSlip] = useState(null);
@@ -24,8 +25,8 @@
     const whList = window.whWithData(data.warehouses, new Set(data.parts.map((p) => p.wh)));
     // เก็บร่างตะกร้าเบิกอัตโนมัติ (กันหายตอนรีโหลด/มือถือล้างแท็บ)
     useEffect(() => {
-      try { localStorage.setItem(WD_DRAFT, JSON.stringify({ cart, vehicle, job, jobTitle })); } catch (e) {}
-    }, [cart, vehicle, job, jobTitle]);
+      try { localStorage.setItem(WD_DRAFT, JSON.stringify({ cart, vehicle, charger, job, jobTitle })); } catch (e) {}
+    }, [cart, vehicle, charger, job, jobTitle]);
 
     function add(code) { setCart((c) => c.find((x) => x.code === code) ? c : [...c, { code, qty: 1 }]); }
     function setQty(code, q) { setCart((c) => c.map((x) => x.code === code ? { ...x, qty: Math.max(1, q) } : x)); }
@@ -42,14 +43,14 @@
       setBusy(true);
       try {
         const lines = cart.map((c) => ({ code: c.code, qty: c.qty, part: D.partByCode(c.code) }));
-        const ids = await actions.withdrawAndGet(cart, { vehicle, job, jobTitle, by: data.currentUser });
+        const ids = await actions.withdrawAndGet(cart, { vehicle, charger, job, jobTitle, by: data.currentUser });
         setSlip({
           id: (ids && ids.length ? ids.join(", ") : "—"),
           date: new Date().toISOString().slice(0, 10), by: data.currentUser,
-          vehicle, job, jobTitle, lines,
+          vehicle, charger, job, jobTitle, lines,
         });
         setToast(t("wd_done"));
-        setCart([]); setVehicle(""); setJob(""); setJobTitle("");
+        setCart([]); setVehicle(""); setCharger(""); setJob(""); setJobTitle("");
       } catch (e) {
         setToast((lang === "en" ? "Withdraw failed: " : "เบิกไม่สำเร็จ: ") + (e && e.message || ""));
       } finally { setBusy(false); }
@@ -62,13 +63,13 @@
     (data.issues || []).forEach((iss) => {
       const key = iss.createdAt || iss.id;
       let g = _gmap[key];
-      if (!g) { g = _gmap[key] = { key, date: iss.date, job: iss.job, vehicle: iss.vehicle, by: iss.by, jobTitle: iss.jobTitle, dept: iss.dept, ids: [], lines: [], qty: 0 }; histGroups.push(g); }
+      if (!g) { g = _gmap[key] = { key, date: iss.date, job: iss.job, vehicle: iss.vehicle, charger: iss.charger, by: iss.by, jobTitle: iss.jobTitle, dept: iss.dept, ids: [], lines: [], qty: 0 }; histGroups.push(g); }
       g.ids.push(iss.id); g.qty += (iss.qty || 0);
       g.lines.push({ code: iss.code, qty: iss.qty, part: D.partByCode(iss.code) || { th: iss.code, en: iss.code, unit: "" } });
     });
     function reprint(g) {
       setSlip({ id: g.ids[0], date: g.date, by: g.by, dept: g.dept,
-        vehicle: (g.vehicle && g.vehicle !== "—") ? g.vehicle : "", job: g.job, jobTitle: g.jobTitle, lines: g.lines });
+        vehicle: (g.vehicle && g.vehicle !== "—") ? g.vehicle : "", charger: g.charger || "", job: g.job, jobTitle: g.jobTitle, lines: g.lines });
     }
 
     if (slip) return React.createElement(IssueSlip, { t, lang, slip, role, onBack: () => setSlip(null) });
@@ -165,6 +166,21 @@
                       })),
                     React.createElement(window.Field, { label: t("wd_job") },
                       React.createElement("input", { className: "input mono", placeholder: "JOB-____", value: job, onChange: (e) => setJob(e.target.value) }))),
+                  (data.chargers && data.chargers.length)
+                    ? React.createElement("div", { style: { marginBottom: 12 } },
+                        React.createElement(window.Field, { label: lang === "en" ? "Charger" : "ตู้ชาร์จ" },
+                          React.createElement(window.SearchSelect, {
+                            value: charger, onChange: setCharger,
+                            noneLabel: lang === "en" ? "— none —" : "— ไม่ระบุ —",
+                            placeholder: lang === "en" ? "Search charger…" : "ค้นหาตู้ชาร์จ…",
+                            options: data.chargers.map((c) => ({
+                              value: c.id,
+                              label: `${c.id} · ${c.kw}kW ${c.model}`,
+                              sub: [c.modelTh, c.location].filter(Boolean).join(" · "),
+                              search: `${c.model} ${c.modelTh || ""} ${c.location || ""}`,
+                            })),
+                          })))
+                    : null,
                   React.createElement(window.Field, { label: t("wd_for") },
                     React.createElement("input", { className: "input", placeholder: lang === "en" ? "e.g. Replace front brake pads" : "เช่น เปลี่ยนผ้าเบรกหน้า", value: jobTitle, onChange: (e) => setJobTitle(e.target.value) })),
                   React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", margin: "16px 0" } },
@@ -198,6 +214,7 @@
   function IssueSlip({ t, lang, slip, role, onBack }) {
     const deptLabel = lang === "en" ? "Maintenance Dept." : "แผนกซ่อมบำรุง"; // ป้ายคงที่บนใบปริ้น
     const veh = slip.vehicle ? D.vehById(slip.vehicle) : null;
+    const chg = slip.charger ? D.chargerById(slip.charger) : null;
     return React.createElement("div", { className: "page fadein" },
       React.createElement("div", { className: "page-head no-print" },
         React.createElement("div", null,
@@ -219,8 +236,9 @@
           docM(t("issue_no"), slip.id, true),
           docM(t("date"), fmtDate(slip.date, lang)),
           docM(t("dept"), deptLabel),
-          docM(t("wd_vehicle"), veh ? `${veh.id} (${veh.plate})` : t("wd_no_job")),
-          docM(t("chassis"), veh ? veh.chassis : "—", true),
+          docM(t("wd_vehicle"), veh ? `${veh.id} (${veh.plate})` : (chg ? "—" : t("wd_no_job"))),
+          chg ? docM(lang === "en" ? "Charger" : "ตู้ชาร์จ", `${chg.id} · ${chg.kw}kW ${chg.model}`, true)
+              : docM(t("chassis"), veh ? veh.chassis : "—", true),
           docM(t("wd_job"), slip.job || "—", true)),
         slip.jobTitle ? React.createElement("div", { style: { background: "var(--green-50)", borderRadius: 10, padding: "10px 14px", marginBottom: 18, font: "500 13px var(--font-th)", color: "var(--strong-green)" } }, t("wd_for") + ": " + slip.jobTitle) : null,
         React.createElement("table", { className: "doc-tbl" },
