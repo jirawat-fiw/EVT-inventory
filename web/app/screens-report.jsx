@@ -80,11 +80,14 @@
       && (!qq || p.code.toLowerCase().includes(qq) || (p.th || "").toLowerCase().includes(qq) || (p.en || "").toLowerCase().includes(qq)));
 
     function handleScan(code) {
-      const norm = String(code).trim();
+      const parsed = window.parseLabelQR ? window.parseLabelQR(code) : { code: String(code).trim(), pr: null, unit: null };
+      const norm = parsed.code;
       const p = D.partByCode(norm) || data.parts.find((x) => x.code.toLowerCase() === norm.toLowerCase());
       if (!p) return false;
       add(p.code);
-      setToast(t("scan_added") + " · " + p.code);
+      setToast(t("scan_added") + " · " + p.code
+        + (parsed.pr ? " · " + parsed.pr : "")
+        + (parsed.unit ? " · " + (lang === "en" ? "pc " : "ชิ้น ") + parsed.unit : ""));
       setScan(false);
       return true;
     }

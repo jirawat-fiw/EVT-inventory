@@ -14,6 +14,19 @@
     } catch (e) { return null; }
   }
 
+  // ---- รูปแบบค่าใน QR: "รหัส|PR|ชิ้นที่/ทั้งหมด" (เช่น BRK-PAD-F|PR-2569-0148|3/4) ----
+  // เข้ากันได้ย้อนหลัง: QR เดิมที่เป็นรหัสล้วน (ไม่มี "|") ยังอ่านได้เหมือนเดิม
+  function buildLabelQR(code, prId, idx, total) {
+    if (!prId && (!total || total <= 1)) return code;
+    return code + "|" + (prId || "") + "|" + (total > 1 ? idx + "/" + total : "");
+  }
+  function parseLabelQR(raw) {
+    const s = String(raw || "").trim();
+    if (s.indexOf("|") < 0) return { code: s, pr: null, unit: null };
+    const p = s.split("|");
+    return { code: (p[0] || "").trim(), pr: (p[1] || "").trim() || null, unit: (p[2] || "").trim() || null };
+  }
+
   function QRBox({ value, className, style }) {
     const svg = qrSvg(value);
     if (!svg) {
@@ -133,7 +146,7 @@
     rows.forEach((r) => {
       if (r.on && r.n > 0) {
         const part = D.partByCode(r.code);
-        for (let i = 0; i < r.n; i++) labels.push({ code: r.code, part });
+        for (let i = 0; i < r.n; i++) labels.push({ code: r.code, part, idx: i + 1, total: r.n });
       }
     });
     const nSheets = Math.ceil(labels.length / CAP[size]) || 0;
@@ -212,11 +225,11 @@
           <div key={i} className={"label-sheet ls-" + size}>
             {sh.map((l, j) => (
               <div key={j} className="label">
-                <QRBox value={l.code} className="lq"></QRBox>
+                <QRBox value={buildLabelQR(l.code, prId, l.idx, l.total)} className="lq"></QRBox>
                 <div className="lt">
                   <b className="mono">{l.code}</b>
                   <span>{l.part ? l.part.th : ""}</span>
-                  <small className="mono">{(prId ? prId + " · " : "") + "EVT"}</small>
+                  <small className="mono">{(prId ? prId : "EVT") + (l.total > 1 ? " · " + l.idx + "/" + l.total : "")}</small>
                 </div>
               </div>
             ))}
@@ -227,5 +240,5 @@
     );
   }
 
-  Object.assign(window, { QRBox, ScanQRModal, LabelPrintModal });
+  Object.assign(window, { QRBox, ScanQRModal, LabelPrintModal, buildLabelQR, parseLabelQR });
 })();
