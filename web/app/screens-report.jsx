@@ -42,7 +42,7 @@
       if (big && !window.confirm((lang === "en" ? "Confirm large withdrawal of " : "ยืนยันเบิกจำนวนมาก ") + big.qty + (lang === "en" ? " units?" : " หน่วย?"))) return;
       setBusy(true);
       try {
-        const lines = cart.map((c) => ({ code: c.code, qty: c.qty, part: D.partByCode(c.code) }));
+        const lines = cart.map((c) => { const part = D.partByCode(c.code); return { code: c.code, qty: c.qty, part, wh: part ? part.wh : "" }; });
         const ids = await actions.withdrawAndGet(cart, { vehicle, charger, job, jobTitle, by: data.currentUser });
         setSlip({
           id: (ids && ids.length ? ids.join(", ") : "—"),
@@ -65,7 +65,7 @@
       let g = _gmap[key];
       if (!g) { g = _gmap[key] = { key, date: iss.date, job: iss.job, vehicle: iss.vehicle, charger: iss.charger, by: iss.by, jobTitle: iss.jobTitle, dept: iss.dept, ids: [], lines: [], qty: 0 }; histGroups.push(g); }
       g.ids.push(iss.id); g.qty += (iss.qty || 0);
-      g.lines.push({ code: iss.code, qty: iss.qty, part: D.partByCode(iss.code) || { th: iss.code, en: iss.code, unit: "" } });
+      g.lines.push({ code: iss.code, qty: iss.qty, wh: iss.wh, part: D.partByCode(iss.code) || { th: iss.code, en: iss.code, unit: "" } });
     });
     function reprint(g) {
       setSlip({ id: g.ids[0], date: g.date, by: g.by, dept: g.dept,
@@ -244,18 +244,20 @@
         React.createElement("table", { className: "doc-tbl" },
           React.createElement("thead", null, React.createElement("tr", null,
             React.createElement("th", null, "#"), React.createElement("th", null, t("code")), React.createElement("th", null, t("detail")),
-            React.createElement("th", { className: "num" }, t("qty")))),
+            React.createElement("th", null, t("warehouse")), React.createElement("th", { className: "num" }, t("qty")))),
           React.createElement("tbody", null,
             slip.lines.map((l, i) => {
               const part = l.part || { th: l.code, en: l.code, unit: "" };
+              const wh = D.whById(l.wh || part.wh);
               return React.createElement("tr", { key: l.code },
                 React.createElement("td", null, i + 1),
                 React.createElement("td", { className: "mono", style: { fontWeight: 600 } }, l.code),
                 React.createElement("td", null, lang === "en" ? part.en : part.th),
+                React.createElement("td", null, wh ? (lang === "en" ? wh.en : wh.th) : "—"),
                 React.createElement("td", { className: "num" }, l.qty + " " + part.unit));
             })),
           React.createElement("tfoot", null, React.createElement("tr", null,
-            React.createElement("td", { colSpan: 3, className: "num" }, t("total")),
+            React.createElement("td", { colSpan: 4, className: "num" }, t("total")),
             React.createElement("td", { className: "num" }, slip.lines.reduce((s, l) => s + l.qty, 0) + " " + t("pieces"))))),
         React.createElement("div", { className: "doc-sign" },
           docSign(t("issued_by"), slip.by),
